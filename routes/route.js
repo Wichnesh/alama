@@ -767,7 +767,7 @@ route.post("/data", async (req, res) => {
         enrollDate: elem.enrollDate,
       };
       oneOut.enrolledStudents.push(enrollStu);
-      tShirtArr.push(elem.tShirt);
+      tShirtArr.push("Tshirt-" + elem.tShirt);
     });
     const tShirtObj = tShirtArr.reduce((acc, currentValue) => {
       acc[currentValue] = (acc[currentValue] || 0) + 1;
