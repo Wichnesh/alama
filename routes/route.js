@@ -117,7 +117,9 @@ route.post("/getallfranchise", async (req, res) => {
     let basicQuery = { isAdmin: false };
     let paramQuery = req.query;
     let filter = Object.assign(basicQuery, paramQuery);
-    let allFranchise = await Franchiselist.find(filter, { __v: 0 }).sort({username:1});
+    let allFranchise = await Franchiselist.find(filter, { __v: 0 }).sort({
+      username: 1,
+    });
     if (allFranchise) {
       res.status(200).json({
         status: true,
@@ -162,7 +164,7 @@ route.post("/studentcartreg", async (req, res) => {
       program: req.body.program,
       date: new Date().toLocaleDateString("en-US"),
       cost: req.body.cost,
-      paymentID: req.body.paymentID
+      paymentID: req.body.paymentID,
     },
   ];
   let newStudent = StudentCartlist({
@@ -200,8 +202,8 @@ route.post("/studentcartreg", async (req, res) => {
       });
     });
 });
-route.post("/studentcart-delete",async(req,res)=>{
-  try{
+route.post("/studentcart-delete", async (req, res) => {
+  try {
     await StudentCartlist.findOneAndRemove({
       studentID: req.body.studentID,
     });
@@ -209,13 +211,13 @@ route.post("/studentcart-delete",async(req,res)=>{
       status: true,
       message: `Student deleted in cart`,
     });
-  }catch (err) {
+  } catch (err) {
     res.status(400).json({
       status: false,
       message: err,
     });
   }
-})
+});
 //STUDENT REGISTRATION
 route.post("/student-reg", async (req, res) => {
   let newLevelUpdate = [
@@ -224,7 +226,7 @@ route.post("/student-reg", async (req, res) => {
       program: req.body.program,
       date: new Date().toLocaleDateString("en-US"),
       cost: req.body.cost,
-      paymentID: req.body.paymentID
+      paymentID: req.body.paymentID,
     },
   ];
   let newStudent = Studentlist({
@@ -317,7 +319,7 @@ route.post("/multiplestudents", async (req, res) => {
         program: req.body.data[i].program,
         date: new Date().toLocaleDateString("en-US"),
         cost: req.body.data[i].cost[0],
-        paymentID: req.body.data[i].paymentID
+        paymentID: req.body.data[i].paymentID,
       },
     ];
     let newStudent = Studentlist({
@@ -543,7 +545,7 @@ route.post("/order", async (req, res) => {
       program: req.body.program,
       date: new Date().toLocaleDateString("en-US"),
       cost: req.body.cost,
-      paymentID: req.body.paymentID
+      paymentID: req.body.paymentID,
     },
   ];
   let reqCertificate = req.body.certificate;
@@ -732,6 +734,7 @@ route.post("/data", async (req, res) => {
           level: 1,
           district: 1,
           enrollDate: 1,
+          tShirt: 1,
         },
       },
     },
@@ -744,6 +747,7 @@ route.post("/data", async (req, res) => {
       count: {},
       enrolledStudents: [],
     };
+    let tShirtArr = [];
 
     let onlyItems = [];
     data[i].stock.forEach(function (elem) {
@@ -751,7 +755,7 @@ route.post("/data", async (req, res) => {
       if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
-      if(new Date(currentDt) < new Date(startDt)){
+      if (new Date(currentDt) < new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
@@ -763,7 +767,13 @@ route.post("/data", async (req, res) => {
         enrollDate: elem.enrollDate,
       };
       oneOut.enrolledStudents.push(enrollStu);
+      tShirtArr.push(elem.tShirt);
     });
+    const tShirtObj = tShirtArr.reduce((acc, currentValue) => {
+      acc[currentValue] = (acc[currentValue] || 0) + 1;
+      return acc;
+    }, {});
+    oneOut.tShirtObj = tShirtObj;
     onlyItems = onlyItems.flat();
     for (const num of onlyItems) {
       counts[num] = counts[num] ? counts[num] + 1 : 1;
@@ -818,17 +828,17 @@ route.post("/data", async (req, res) => {
       let stuData = studentNameData.filter(function (item) {
         return item.studentID === elem.studentID;
       });
-      console.log("StudentData  =  ",stuData,"elem ",elem);
+      console.log("StudentData  =  ", stuData, "elem ", elem);
       let newOrd;
-      if(stuData){
+      if (stuData) {
         newOrd = {
-        studentName: stuData[0].studentName,
-        studentID: elem.studentID,
-        state: stuData[0].state,
-        currentLevel: elem.currentLevel,
-        futureLevel: elem.futureLevel,
-        district: stuData[0].district,
-        createdAt: elem.createdAt,
+          studentName: stuData[0].studentName,
+          studentID: elem.studentID,
+          state: stuData[0].state,
+          currentLevel: elem.currentLevel,
+          futureLevel: elem.futureLevel,
+          district: stuData[0].district,
+          createdAt: elem.createdAt,
         };
         oneOrderOut.ordered.push(newOrd);
       }
@@ -861,17 +871,24 @@ route.post("/data", async (req, res) => {
         totalItems[key] = mergedArr[i].orderCounts[key];
       }
     }
-    mergedArr[i]["totalItems"] = totalItems;
-    console.log("totalItems - ",(Object.keys(mergedArr[i]["totalItems"]).length));
-    console.log("enrolledStudents- ",mergedArr[i]["enrolledStudents"].length);
-    if((Object.keys(mergedArr[i]["totalItems"]).length === 0) && (mergedArr[i]["enrolledStudents"].length == 0)){
-        delete mergedArr[i];
-    }else{
+    // mergedArr[i]["totalItems"] = totalItems;
+    mergedArr[i]["totalItems"] = { ...totalItems, ...mergedArr[i].tShirtObj };
+    console.log(
+      "totalItems - ",
+      Object.keys(mergedArr[i]["totalItems"]).length
+    );
+    console.log("enrolledStudents- ", mergedArr[i]["enrolledStudents"].length);
+    if (
+      Object.keys(mergedArr[i]["totalItems"]).length === 0 &&
+      mergedArr[i]["enrolledStudents"].length == 0
+    ) {
+      delete mergedArr[i];
+    } else {
       delete mergedArr[i]["count"];
       delete mergedArr[i]["orderCounts"];
     }
   }
-  const filteredmergedArr = mergedArr.filter(object => object !== null);
+  const filteredmergedArr = mergedArr.filter((object) => object !== null);
   if (mergedArr) {
     res.status(200).json({
       status: true,
@@ -890,7 +907,7 @@ route.post("/tamilnadureport", async (req, res) => {
   let startDt = new Date(startDate).toLocaleDateString("en-US");
   const data = await Studentlist.aggregate([
     {
-      $match: { "state": "Tamil Nadu" },
+      $match: { state: "Tamil Nadu" },
     },
     {
       $group: { _id: "$franchise", stock: { $push: "$$ROOT" } },
@@ -923,7 +940,7 @@ route.post("/tamilnadureport", async (req, res) => {
       if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
-      if(new Date(currentDt) < new Date(startDt)){
+      if (new Date(currentDt) < new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
@@ -989,17 +1006,17 @@ route.post("/tamilnadureport", async (req, res) => {
       let stuData = studentNameData.filter(function (item) {
         return item.studentID === elem.studentID;
       });
-      console.log("StudentData  =  ",stuData,"elem ",elem);
+      console.log("StudentData  =  ", stuData, "elem ", elem);
       let newOrd;
-      if((stuData) && (stuData[0].state == "Tamil Nadu")){
+      if (stuData && stuData[0].state == "Tamil Nadu") {
         newOrd = {
-        studentName: stuData[0].studentName,
-        studentID: elem.studentID,
-        state: stuData[0].state,
-        currentLevel: elem.currentLevel,
-        futureLevel: elem.futureLevel,
-        district: stuData[0].district,
-        createdAt: elem.createdAt,
+          studentName: stuData[0].studentName,
+          studentID: elem.studentID,
+          state: stuData[0].state,
+          currentLevel: elem.currentLevel,
+          futureLevel: elem.futureLevel,
+          district: stuData[0].district,
+          createdAt: elem.createdAt,
         };
         oneOrderOut.ordered.push(newOrd);
         onlyItems.push(elem.items);
@@ -1037,7 +1054,7 @@ route.post("/tamilnadureport", async (req, res) => {
     delete mergedArr[i]["count"];
     delete mergedArr[i]["orderCounts"];
   }
-  const filteredmergedArr = mergedArr.filter(object => object !== null);
+  const filteredmergedArr = mergedArr.filter((object) => object !== null);
   if (mergedArr) {
     res.status(200).json({
       status: true,
