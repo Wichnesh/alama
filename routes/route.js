@@ -156,6 +156,28 @@ route.post("/approveUser", verifyToken, (req, res, next) => {
     });
   }
 });
+// REJECT USER
+route.post("/rejectUser", verifyToken, (req, res, next) => {
+  let { franchiseID } = req.body;
+  try {
+    const filter = { franchiseID: franchiseID };
+    const update = {
+      approve: false,
+    };
+    jwt.verify(req.token, "secretkey", async (err, authData) => {
+      if (err) res.sendStatus(403);
+      else {
+        let updateData = await Franchiselist.findOneAndUpdate(filter, update);
+        res.send(JSON.stringify({ status: true, message: "User rejected!" }));
+      }
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: false,
+      message: err,
+    });
+  }
+});
 //STUDENT UNPAID REGISTRATION
 route.post("/studentcartreg", async (req, res) => {
   let newLevelUpdate = [
