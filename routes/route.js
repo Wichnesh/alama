@@ -328,6 +328,30 @@ route.post("/student-reg", async (req, res) => {
       });
   }, 4000);
 });
+
+// EDIT STUDENT
+route.post("/student-update/:id", async (req, res) => {
+  let studentFind;
+  var removeFields = ["studentID","enrollDate", "franchise", "levelOrders", "cost", "paymentID","program","tShirt","items"]
+  try {
+    const filter = { studentID: req.params.id};
+    let updateData = req.body;
+    removeFields.forEach((field) => {
+      if (updateData[field]) {
+        delete updateData[field];
+      }
+    });
+    let updatedData = await Studentlist.findOneAndUpdate(filter, updateData);
+    res.send({ status: true, message: "Student updated!" });
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({
+      status: false,
+      message: err,
+    });
+  }
+});
+
 //MULTIPLE STUDENT REGISTRATION
 route.post("/multiplestudents", async (req, res) => {
   console.log(req.body);
