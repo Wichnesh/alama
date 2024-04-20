@@ -1254,7 +1254,40 @@ route.post("/dataperiod", async (req, res) => {
     });
   }
 });
+route.post("/getStudentsCount",async (req,res) => {
+  try {
+    let basicQuery = { isAdmin: false };
+    let paramQuery = req.query;
+    let filter = Object.assign(basicQuery, paramQuery);
+    let allFranchise = await Franchiselist.find(filter, { __v: 0 }).sort({
+      username: 1,
+    });
+    const aggregationPipeline = [
+      {
+          $group: {
+              _id: '$franchise',
+              numberOfStudents: { $sum: 1 }
+          }
+      }
+  ];
 
+  // Execute the aggregation pipeline
+  const result = await Studentlist.aggregate(aggregationPipeline);
+    if (result) {
+      res.status(200).json({
+        status: true,
+        data1: allStudent,
+        data2: allFranchise
+      });
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({
+      status: false,
+      message: "DB error",
+    });
+  }
+})
 // HELPER FUNCTIONS
 async function getstudentInfo() {
   let studentData = await Studentlist.find(
