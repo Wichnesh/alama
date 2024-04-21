@@ -1269,17 +1269,22 @@ route.post("/getStudentsCount",async (req,res) => {
               numberOfStudents: { $sum: 1 }
           }
       }
-  ];
+      ];
 
-  // Execute the aggregation pipeline
-  const result = await Studentlist.aggregate(aggregationPipeline);
-    if (result) {
-      res.status(200).json({
-        status: true,
-        data1: allStudent,
-        data2: allFranchise
-      });
-    }
+      // Execute the aggregation pipeline
+      const result = await Studentlist.aggregate(aggregationPipeline);
+        if (result) {
+          res.status(200).json({
+            status: true,
+            data1: result,
+            data2: allFranchise
+          });
+        }else{
+          res.status(200).json({
+            status: true,
+            data2: allFranchise
+          });
+        }
   } catch (err) {
     console.log(err);
     res.status(400).json({
