@@ -1273,11 +1273,31 @@ route.post("/getStudentsCount",async (req,res) => {
 
       // Execute the aggregation pipeline
       const result = await Studentlist.aggregate(aggregationPipeline);
+      const combinedJson = allFranchise.map(item2 => {
+        const matchingItem1 = result.find(item1 => item1._id === item2.email);
+        if (matchingItem1) {
+            return {
+                _id:item2._id,
+                franchiseID:item2.franchiseID,
+                name:item2.name,
+                email:item2.email,
+                contactNumber:item2.contactNumber,
+                state:item2.state,
+                district:item2.district,
+                username:item2.username,
+                password:item2.password,
+                registerDate:item2.registerDate,
+                isAdmin:item2.isAdmin,
+                approve:item2.approve,
+                numberOfStudents: matchingItem1.numberOfStudents
+            };
+        }
+        return item2;
+    });
         if (result) {
           res.status(200).json({
             status: true,
-            data1: result,
-            data2: allFranchise
+            data1: combinedJson
           });
         }else{
           res.status(200).json({
