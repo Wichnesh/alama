@@ -1,3 +1,4 @@
+const e = require("express");
 const mongoose = require("mongoose");
 
 const ordersSchema = new mongoose.Schema({
@@ -31,9 +32,13 @@ const ordersSchema = new mongoose.Schema({
     type:Boolean,
     default:false
   },
+  status: {
+    type: String,
+    default: "Pending",
+  },
   createdAt: {
     type: String,
-    default: new Date().toLocaleDateString("en-US"),
+    default: new Date().toLocaleString(),
   },
 });
 

@@ -7,8 +7,10 @@ var StudentCartlist = require("../models/studentsCart");
 var Itemlist = require("../models/items");
 var Transactionlist = require("../models/transaction");
 var Orderslist = require("../models/orders");
+var razorpayOrders = require("../models/razorpayOrders");
 const mongoose = require("mongoose");
 const studentsCart = require("../models/studentsCart");
+const { createOrder, RPcreateOrder, RPcheckStatus } = require("../utils/razorpayApis");
 
 let totalItems;
 itemsUpdate();
@@ -355,100 +357,133 @@ route.post("/student-update/:id", async (req, res) => {
 //MULTIPLE STUDENT REGISTRATION
 route.post("/multiplestudents", async (req, res) => {
   console.log(req.body);
-  for (let i = 0; i < req.body.data.length; i++) {
-    await StudentCartlist.findOneAndRemove({
-      studentID: req.body.data[i].studentID,
-    });
-    let newLevelUpdate = [
-      {
-        level: req.body.data[i].level,
-        program: req.body.data[i].program,
-        date: new Date().toLocaleDateString("en-US"),
-        cost: req.body.data[i].cost[0],
-        paymentID: req.body.data[i].paymentID,
-      },
-    ];
-    let newStudent = Studentlist({
-      studentID: req.body.data[i].studentID,
-      enrollDate: new Date(req.body.data[i].enrollDate).toLocaleDateString(
-        "en-US"
-      ),
-      studentName: req.body.data[i].studentName,
-      address: req.body.data[i].address,
-      state: req.body.data[i].state,
-      district: req.body.data[i].district,
-      mobileNumber: req.body.data[i].mobileNumber,
-      email: req.body.data[i].email,
-      fatherName: req.body.data[i].fatherName,
-      motherName: req.body.data[i].motherName,
-      franchise: req.body.data[i].franchise,
-      level: req.body.data[i].level,
-      items: req.body.data[i].items,
-      tShirt: req.body.data[i].tShirt,
-      program: req.body.data[i].program,
-      cost: req.body.data[i].cost,
-      paymentID: req.body.data[i].paymentID,
-      levelOrders: newLevelUpdate,
-    });
-    console.log("newStudent -> ", newStudent);
-    newStudent
-      .save()
-      .then(() => {
-        console.log("Added - ", i);
-      })
-      .catch((error) => {
-        res.status(400).json({
-          status: false,
-          error: error,
-        });
-      });
-    // UPDATE STOCKS
-    try {
-      let tshirt = "tshirt" + newStudent.tShirt;
-      await Itemlist.updateMany(
-        { name: { $in: newStudent.items } },
-        { $inc: { count: -1 } }
-      );
-      console.log(tshirt);
-      if (newStudent.tShirt != 0) {
-        await Itemlist.updateOne({ name: tshirt }, { $inc: { count: 1 } });
-      }
-      itemsUpdate();
-    } catch (err) {
-      res.status(400).json({
-        status: false,
-        message: err,
-      });
-    }
-    // CREATE TRANSACTION
-    let transactions = [];
+  var razorpayOrderObj = req.body.razorpayOrderObj;
+  var isSuccessful = req.body.isSuccessful;
+  var order_id;
+  try{
+    const razerpayOrder = await RPcreateOrder(razorpayOrderObj)
+    if(razerpayOrder.id){
+      res.status(200).send(razerpayOrder.id)
+      console.log(razerpayOrder)
+      let razorpayOrder = razorpayOrders(razerpayOrder);
+      razorpayOrder.notes = {...razorpayOrder?.notes, ...req.body.data}
+      await razorpayOrder.save()
+      order_id = razorpayOrder.id
 
-    newStudent.items.forEach(async (item) => {
-      let newTransaction = {
-        studentName: newStudent.studentName,
-        studentID: newStudent.studentID,
-        franchiseName: newStudent.franchise,
-        itemName: item,
-        quantity: -1,
-        currentQuantity: totalItems.find((it) => it.name === item).count,
-      };
-      transactions.push(newTransaction);
-    });
-    setTimeout(() => {
-      console.log(transactions);
-      Transactionlist.insertMany(transactions)
-        .then(function () {
-          console.log("Transaction inserted");
-        })
-        .catch(function (error) {
-          console.log(error);
-        });
-    }, 4000);
+    if (!isSuccessful) {
+      let time = 0;
+      while (!isSuccessful || time < 60) {
+        let order = await RPcheckStatus(razerpayOrder.id);
+        console.log("order Found");
+        console.log(order);
+        if (order?.status === "paid") {
+          razorpayOrder.status = "paid";
+          await razorpayOrder.save();
+          isSuccessful = true;
+          break;
+        }
+        console.log("Checking payment status");
+        console.log(order?.status );
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        time++;
+      }
+    }
   }
-  res.status(200).json({
-    status: true,
-    message: `${req.body.data.length} students added!`,
-  });
+  else{
+    res.status(400).send("Error in creating order")
+  }
+
+  }
+  catch(err){
+    console.log(err)
+  }
+  if (isSuccessful) {
+    for (let i = 0; i < req.body.data.length; i++) {
+      await StudentCartlist.findOneAndRemove({
+        studentID: req.body.data[i].studentID,
+      });
+      let newLevelUpdate = [
+        {
+          level: req.body.data[i].level,
+          program: req.body.data[i].program,
+          date: new Date().toLocaleDateString("en-US"),
+          cost: req.body.data[i].cost[0],
+          paymentID: req.body.data[i].paymentID,
+        },
+      ];
+      let newStudent = Studentlist({
+        studentID: req.body.data[i].studentID,
+        enrollDate: new Date(req.body.data[i].enrollDate).toLocaleDateString(
+          "en-US"
+        ),
+        studentName: req.body.data[i].studentName,
+        address: req.body.data[i].address,
+        state: req.body.data[i].state,
+        district: req.body.data[i].district,
+        mobileNumber: req.body.data[i].mobileNumber,
+        email: req.body.data[i].email,
+        fatherName: req.body.data[i].fatherName,
+        motherName: req.body.data[i].motherName,
+        franchise: req.body.data[i].franchise,
+        level: req.body.data[i].level,
+        items: req.body.data[i].items,
+        tShirt: req.body.data[i].tShirt,
+        program: req.body.data[i].program,
+        cost: req.body.data[i].cost,
+        paymentID: order_id,
+        levelOrders: newLevelUpdate,
+      });
+      console.log("newStudent -> ", newStudent);
+      newStudent
+        .save()
+        .then(() => {
+          console.log("Added - ", i);
+        })
+        .catch((error) => {
+         console.log(error);
+        });
+      // UPDATE STOCKS
+      try {
+        let tshirt = "tshirt" + newStudent.tShirt;
+        await Itemlist.updateMany(
+          { name: { $in: newStudent.items } },
+          { $inc: { count: -1 } }
+        );
+        console.log(tshirt);
+        if (newStudent.tShirt != 0) {
+          await Itemlist.updateOne({ name: tshirt }, { $inc: { count: 1 } });
+        }
+        itemsUpdate();
+      } catch (err) {
+        console.log(err);
+      }
+      // CREATE TRANSACTION
+      let transactions = [];
+
+      newStudent.items.forEach(async (item) => {
+        let newTransaction = {
+          studentName: newStudent.studentName,
+          studentID: newStudent.studentID,
+          franchiseName: newStudent.franchise,
+          itemName: item,
+          quantity: -1,
+          currentQuantity: totalItems.find((it) => it.name === item).count,
+        };
+        transactions.push(newTransaction);
+      });
+      setTimeout(() => {
+        console.log(transactions);
+        Transactionlist.insertMany(transactions)
+          .then(function () {
+            console.log("Transaction inserted");
+          })
+          .catch(function (error) {
+            console.log(error);
+          });
+      }, 4000);
+    }
+    console.log("All students added successfully!");
+}
 });
 
 //GET ALL STUDENTS
@@ -584,7 +619,61 @@ route.post("/editItem", async (req, res, next) => {
   newTransaction.save();
 });
 //CREATE ORDERS
+
+route.post("/create-order", async (req, res) => {
+  try{
+    order = await RPcreateOrder(req.body.razorpayOrderObj)
+    if(order){
+      let razorpayOrder = razorpayOrders(order);
+      await razorpayOrder.save()
+      res.send(order.id)
+    }else{
+      res.send("Error in creating order")
+    }
+  }
+  catch(err){
+    console.log(err)
+  }
+});
+
+
 route.post("/order", async (req, res) => {
+  var isSuccessful = req.body.isSuccessful??false;
+  const razorpayOrderObj = req.body.razorpayOrderObj;
+  console.log(req.body)
+  console.log(razorpayOrderObj)
+  // if isSuccessful is false, then wait for the payment to be successful while checking the paymentID every 5 seconds for 5 minutes
+  try{
+    const razerpayOrder = await RPcreateOrder(razorpayOrderObj)
+    res.send(razerpayOrder.id)
+    console.log(razerpayOrder)
+    let razorpayOrder = razorpayOrders(razerpayOrder);
+    await razorpayOrder.save()
+  
+
+    if (!isSuccessful) {
+      let time = 0;
+      while (!isSuccessful || time < 60) {
+        let order = await RPcheckStatus(razerpayOrder.id);
+        console.log("order Found");
+        console.log(order);
+        if (order?.status === "paid") {
+          razorpayOrder.status = "paid";
+          await razorpayOrder.save();
+          isSuccessful = true;
+          break;
+        }
+        console.log("Checking payment status");
+        console.log(order?.status );
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        time++;
+      }
+    }
+  }
+  catch(err){
+    console.log(err)
+    res.send("Error in creating order")
+  }
   let newLevelUpdate = [
     {
       level: req.body.futureLevel,
@@ -603,16 +692,17 @@ route.post("/order", async (req, res) => {
     franchise: req.body.franchise,
     enableBtn: req.body.enableBtn,
     transferBool: req.body.transferBool,
-    createdAt: new Date().toLocaleDateString("en-US"),
+    status: isSuccessful ? "Success" : "Pending",
+
     program: req.body.program,
   });
   newOrder
     .save()
     .then(() => {
-      res.status(200).json({
-        status: true,
-        message: "Order added successfully!",
-      });
+      // res.status(200).json({
+      //   status: true,
+      //   message: "Order added successfully!",
+      // });
     })
     .catch((error) => {
       res.status(400).json({
@@ -621,10 +711,12 @@ route.post("/order", async (req, res) => {
       });
     });
   try {
+    if (isSuccessful){
     await Itemlist.updateMany(
       { name: { $in: newOrder.items } },
       { $inc: { count: -1 } }
     );
+  }
     itemsUpdate();
   } catch (err) {
     // res.status(400).json({
@@ -634,28 +726,30 @@ route.post("/order", async (req, res) => {
     console.log(err);
   }
   // CHANGE STUDENT LEVEL
-  let studentIDReq = req.body.studentID;
-  try {
-    const filter = { studentID: studentIDReq };
-    let updateData = {
-      level: newOrder.futureLevel,
-    };
-    let updatedData = await Studentlist.findOneAndUpdate(filter, {
-      level: newOrder.futureLevel,
-      program: newOrder.program,
-      enableBtn: newOrder.enableBtn,
-      transferBool: newOrder.transferBool,
-      $push: { levelOrders: newLevelUpdate, certificates: reqCertificate },
-    });
-    //res.send(JSON.stringify({ status: true, message: "Student updated!" }));
-    console.log("Student updated!");
-  } catch (err) {
-    console.log(err);
+  if (isSuccessful) {
+    let studentIDReq = req.body.studentID;
+    try {
+        const filter = { studentID: studentIDReq };
+        let updateData = {
+          level: newOrder.futureLevel,
+        };
+        let updatedData = await Studentlist.findOneAndUpdate(filter, {
+          level: newOrder.futureLevel,
+          program: newOrder.program,
+          enableBtn: newOrder.enableBtn,
+          transferBool: newOrder.transferBool,
+          $push: { levelOrders: newLevelUpdate, certificates: reqCertificate },
+        });
+        //res.send(JSON.stringify({ status: true, message: "Student updated!" }));
+        console.log("Student updated!");
+    } catch (err) {
+      console.log(err);
+    }
   }
 });
 route.post("/getallorders", async (req, res) => {
   try {
-    let allOrders = await Orderslist.find({}, { __v: 0 });
+    let allOrders = await Orderslist.find({status: "Success",}, { __v: 0 });
     if (allOrders) {
       res.status(200).json({
         status: true,
@@ -681,6 +775,7 @@ route.post("/filterorder", async (req, res) => {
       });
     }
     const orders = await Orderslist.find({
+      status: "Success",
       createdAt: {
         $gte: new Date(new Date(startDate).setHours(00, 00, 00)),
         $lt: new Date(new Date(endDate).setHours(23, 59, 59)),
@@ -830,6 +925,9 @@ route.post("/data", async (req, res) => {
   }
   console.log(out);
   let orderData = await Orderslist.aggregate([
+    {
+      $match: { status: "Success" },
+    },
     // {
     //   $match: {
     //     createdAt: {
@@ -1017,6 +1115,9 @@ route.post("/tamilnadureport", async (req, res) => {
     }
     console.log(out);
     let orderData = await Orderslist.aggregate([
+      {
+        $match: { status: "Success" },
+      },
       // {
       //   $match: {
       //     createdAt: {
@@ -1173,7 +1274,7 @@ route.post("/dataperiod", async (req, res) => {
   console.log(out);
   let orderData = await Orderslist.aggregate([
     {
-      $match: { createdAt: new Date(date).toLocaleDateString("en-US") },
+      $match: { createdAt: new Date(date).toLocaleDateString("en-US"), status: "Success" },
     },
     {
       $group: { _id: "$franchise", orders: { $push: "$$ROOT" } },
