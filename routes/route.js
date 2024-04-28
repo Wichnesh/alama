@@ -67,6 +67,19 @@ route.post("/login", async (req, res, next) => {
     console.log(err);
   }
 });
+route.post("/login-status",async (req,res,next) =>{
+  let token = req.body.token;
+  jwt.verify(token, "your_secret_key", (err, decoded) => {
+    if (err) {
+      res.sendStatus(403); // Forbidden
+    } else {
+      req.user = decoded;
+      approve = req.user.approve;
+      res.send(JSON.stringify({ status: true, approve: approve }));
+      // Attach decoded user data to request object
+    }
+  });
+})
 // GENERATE ID
 route.post("/generateID", async (req, res, next) => {
   let genID = await newFranchiseID();
