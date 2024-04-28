@@ -46,17 +46,24 @@ route.post("/login", async (req, res, next) => {
     let userCheck = await Franchiselist.findOne({ username: userName.trim() });
     console.log(userCheck);
     if (userCheck) {
-      if (userCheck.approve == true && userCheck.password == password) {
-        jwt.sign({ user }, "secretkey", (err, token) => {
-          res.send(
-            JSON.stringify({
-              token,
-              status: true,
-              isAdmin: userCheck.isAdmin,
-              franchiseState: userCheck.state,
-            })
-          );
+      if (userCheck.approve == true && userCheck.password == password) { 
+        const userData = {
+          id: userCheck.franchiseID,
+          approve: userCheck.approve
+          // Add more user data as needed
+        };
+        // Generate JWT token with user data
+        const token = jwt.sign(userData, "your_secret_key", {
+          expiresIn: "2 days",
         });
+        res.send(
+          JSON.stringify({
+            token:token,
+            status: true,
+            isAdmin: userCheck.isAdmin,
+            franchiseState: userCheck.state,
+          })
+        );
       } else {
         res.send(JSON.stringify({ status: false }));
       }
@@ -69,7 +76,7 @@ route.post("/login", async (req, res, next) => {
 });
 route.post("/login-status",async (req,res,next) =>{
   let token = req.body.token;
-  jwt.verify(token, "secretkey", (err, decoded) => {
+  jwt.verify(token, "your_secret_key", (err, decoded) => {
     if (err) {
       res.sendStatus(403); // Forbidden
     } else {
