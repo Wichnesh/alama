@@ -1355,7 +1355,65 @@ route.post("/dataperiod", async (req, res) => {
     });
   }
 });
+route.post("/getStudentsCount",async (req,res) => {
+  try {
+    let basicQuery = { isAdmin: false };
+    let paramQuery = req.query;
+    let filter = Object.assign(basicQuery, paramQuery);
+    let allFranchise = await Franchiselist.find(filter, { __v: 0 }).sort({
+      username: 1,
+    });
+    const aggregationPipeline = [
+      {
+          $group: {
+              _id: '$franchise',
+              numberOfStudents: { $sum: 1 }
+          }
+      }
+      ];
 
+      // Execute the aggregation pipeline
+      const result = await Studentlist.aggregate(aggregationPipeline);
+      const combinedJson = allFranchise.map(item2 => {
+        const matchingItem1 = result.find(item1 => item1._id === item2.email);
+        if (matchingItem1) {
+            return {
+                _id:item2._id,
+                franchiseID:item2.franchiseID,
+                name:item2.name,
+                email:item2.email,
+                contactNumber:item2.contactNumber,
+                state:item2.state,
+                district:item2.district,
+                username:item2.username,
+                password:item2.password,
+                registerDate:item2.registerDate,
+                isAdmin:item2.isAdmin,
+                approve:item2.approve,
+                numberOfStudents: matchingItem1.numberOfStudents
+            };
+        }
+        return item2;
+    });
+        if (result) {
+          res.status(200).json({
+            status: true,
+            data1: combinedJson
+          });
+        }else{
+          res.status(200).json({
+            status: true,
+            data2: allFranchise
+          });
+        }
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({
+      status: false,
+      message: "DB error",
+    });
+  }
+})
 // HELPER FUNCTIONS
 async function getstudentInfo() {
   let studentData = await Studentlist.find(
