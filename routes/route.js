@@ -69,7 +69,7 @@ route.post("/login", async (req, res, next) => {
 });
 route.post("/login-status",async (req,res,next) =>{
   let token = req.body.token;
-  jwt.verify(token, "your_secret_key", (err, decoded) => {
+  jwt.verify(token, "secretkey", (err, decoded) => {
     if (err) {
       res.sendStatus(403); // Forbidden
     } else {
