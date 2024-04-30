@@ -35,7 +35,7 @@ mongoose.connection.on("error", (err) => {
 app.use(cors());
 app.use(bodyParser.json());
 const route = require("./routes/route");
-app.use("/api/v1", route);
+app.use("/api/v2", route);
 
 app.get("/", (req, res) => {
   res.send("Home");
