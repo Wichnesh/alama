@@ -10,7 +10,11 @@ var Orderslist = require("../models/orders");
 var razorpayOrders = require("../models/razorpayOrders");
 const mongoose = require("mongoose");
 const studentsCart = require("../models/studentsCart");
-const { createOrder, RPcreateOrder, RPcheckStatus } = require("../utils/razorpayApis");
+const {
+  createOrder,
+  RPcreateOrder,
+  RPcheckStatus,
+} = require("../utils/razorpayApis");
 
 let totalItems;
 itemsUpdate();
@@ -46,10 +50,10 @@ route.post("/login", async (req, res, next) => {
     let userCheck = await Franchiselist.findOne({ username: userName.trim() });
     console.log(userCheck);
     if (userCheck) {
-      if (userCheck.approve == true && userCheck.password == password) { 
+      if (userCheck.approve == true && userCheck.password == password) {
         const userData = {
           id: userCheck.franchiseID,
-          approve: userCheck.approve
+          approve: userCheck.approve,
           // Add more user data as needed
         };
         // Generate JWT token with user data
@@ -58,7 +62,7 @@ route.post("/login", async (req, res, next) => {
         });
         res.send(
           JSON.stringify({
-            token:token,
+            token: token,
             status: true,
             isAdmin: userCheck.isAdmin,
             franchiseState: userCheck.state,
@@ -74,7 +78,7 @@ route.post("/login", async (req, res, next) => {
     console.log(err);
   }
 });
-route.post("/login-status",async (req,res,next) =>{
+route.post("/login-status", async (req, res, next) => {
   let token = req.body.token;
   jwt.verify(token, "your_secret_key", (err, decoded) => {
     if (err) {
@@ -86,7 +90,7 @@ route.post("/login-status",async (req,res,next) =>{
       // Attach decoded user data to request object
     }
   });
-})
+});
 // GENERATE ID
 route.post("/generateID", async (req, res, next) => {
   let genID = await newFranchiseID();
@@ -139,6 +143,7 @@ route.post("/getallfranchise", async (req, res) => {
     let basicQuery = { isAdmin: false };
     let paramQuery = req.query;
     let filter = Object.assign(basicQuery, paramQuery);
+
     let allFranchise = await Franchiselist.find(filter, { __v: 0 }).sort({
       username: 1,
     });
@@ -156,21 +161,17 @@ route.post("/getallfranchise", async (req, res) => {
     });
   }
 });
+
 //APPROVE USER
-route.post("/approveUser", verifyToken, (req, res, next) => {
+route.post("/approveUser", async (req, res, next) => {
   let { franchiseID } = req.body;
   try {
     const filter = { franchiseID: franchiseID };
     const update = {
       approve: true,
     };
-    jwt.verify(req.token, "secretkey", async (err, authData) => {
-      if (err) res.sendStatus(403);
-      else {
         let updateData = await Franchiselist.findOneAndUpdate(filter, update);
         res.send(JSON.stringify({ status: true, message: "User approved!" }));
-      }
-    });
   } catch (err) {
     res.status(400).json({
       status: false,
@@ -179,20 +180,16 @@ route.post("/approveUser", verifyToken, (req, res, next) => {
   }
 });
 // REJECT USER
-route.post("/rejectUser", verifyToken, (req, res, next) => {
+route.post("/rejectUser", async (req, res, next) => {
   let { franchiseID } = req.body;
   try {
     const filter = { franchiseID: franchiseID };
     const update = {
       approve: false,
     };
-    jwt.verify(req.token, "secretkey", async (err, authData) => {
-      if (err) res.sendStatus(403);
-      else {
+
         let updateData = await Franchiselist.findOneAndUpdate(filter, update);
         res.send(JSON.stringify({ status: true, message: "User rejected!" }));
-      }
-    });
   } catch (err) {
     res.status(400).json({
       status: false,
@@ -354,9 +351,19 @@ route.post("/student-reg", async (req, res) => {
 // EDIT STUDENT
 route.post("/student-update/:id", async (req, res) => {
   let studentFind;
-  var removeFields = ["studentID","enrollDate", "franchise", "levelOrders", "cost", "paymentID","program","tShirt","items"]
+  var removeFields = [
+    "studentID",
+    "enrollDate",
+    "franchise",
+    "levelOrders",
+    "cost",
+    "paymentID",
+    "program",
+    "tShirt",
+    "items",
+  ];
   try {
-    const filter = { studentID: req.params.id};
+    const filter = { studentID: req.params.id };
     let updateData = req.body;
     removeFields.forEach((field) => {
       if (updateData[field]) {
@@ -380,42 +387,39 @@ route.post("/multiplestudents", async (req, res) => {
   var razorpayOrderObj = req.body.razorpayOrderObj;
   var isSuccessful = req.body.isSuccessful;
   var order_id;
-  try{
-    const razerpayOrder = await RPcreateOrder(razorpayOrderObj)
-    if(razerpayOrder.id){
-      res.status(200).send(razerpayOrder.id)
-      console.log(razerpayOrder)
+  try {
+    const razerpayOrder = await RPcreateOrder(razorpayOrderObj);
+    if (razerpayOrder.id) {
+      res.status(200).send(razerpayOrder.id);
+      console.log(razerpayOrder);
       let razorpayOrder = razorpayOrders(razerpayOrder);
-      razorpayOrder.notes = {...razorpayOrder?.notes, ...req.body.data}
-      await razorpayOrder.save()
-      order_id = razorpayOrder.id
+      razorpayOrder.notes = { ...razorpayOrder?.notes, ...req.body.data };
+      await razorpayOrder.save();
+      order_id = razorpayOrder.id;
 
-    if (!isSuccessful) {
-      let time = 0;
-      while (!isSuccessful || time < 60) {
-        let order = await RPcheckStatus(razerpayOrder.id);
-        console.log("order Found");
-        console.log(order);
-        if (order?.status === "paid") {
-          razorpayOrder.status = "paid";
-          await razorpayOrder.save();
-          isSuccessful = true;
-          break;
+      if (!isSuccessful) {
+        let time = 0;
+        while (!isSuccessful || time < 60) {
+          let order = await RPcheckStatus(razerpayOrder.id);
+          console.log("order Found");
+          console.log(order);
+          if (order?.status === "paid") {
+            razorpayOrder.status = "paid";
+            await razorpayOrder.save();
+            isSuccessful = true;
+            break;
+          }
+          console.log("Checking payment status");
+          console.log(order?.status);
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+          time++;
         }
-        console.log("Checking payment status");
-        console.log(order?.status );
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-        time++;
       }
+    } else {
+      res.status(400).send("Error in creating order");
     }
-  }
-  else{
-    res.status(400).send("Error in creating order")
-  }
-
-  }
-  catch(err){
-    console.log(err)
+  } catch (err) {
+    console.log(err);
   }
   if (isSuccessful) {
     for (let i = 0; i < req.body.data.length; i++) {
@@ -460,7 +464,7 @@ route.post("/multiplestudents", async (req, res) => {
           console.log("Added - ", i);
         })
         .catch((error) => {
-         console.log(error);
+          console.log(error);
         });
       // UPDATE STOCKS
       try {
@@ -503,7 +507,7 @@ route.post("/multiplestudents", async (req, res) => {
       }, 4000);
     }
     console.log("All students added successfully!");
-}
+  }
 });
 
 //GET ALL STUDENTS
@@ -641,35 +645,32 @@ route.post("/editItem", async (req, res, next) => {
 //CREATE ORDERS
 
 route.post("/create-order", async (req, res) => {
-  try{
-    order = await RPcreateOrder(req.body.razorpayOrderObj)
-    if(order){
+  try {
+    order = await RPcreateOrder(req.body.razorpayOrderObj);
+    if (order) {
       let razorpayOrder = razorpayOrders(order);
-      await razorpayOrder.save()
-      res.send(order.id)
-    }else{
-      res.send("Error in creating order")
+      await razorpayOrder.save();
+      res.send(order.id);
+    } else {
+      res.send("Error in creating order");
     }
-  }
-  catch(err){
-    console.log(err)
+  } catch (err) {
+    console.log(err);
   }
 });
 
-
 route.post("/order", async (req, res) => {
-  var isSuccessful = req.body.isSuccessful??false;
+  var isSuccessful = req.body.isSuccessful ?? false;
   const razorpayOrderObj = req.body.razorpayOrderObj;
-  console.log(req.body)
-  console.log(razorpayOrderObj)
+  console.log(req.body);
+  console.log(razorpayOrderObj);
   // if isSuccessful is false, then wait for the payment to be successful while checking the paymentID every 5 seconds for 5 minutes
-  try{
-    const razerpayOrder = await RPcreateOrder(razorpayOrderObj)
-    res.send(razerpayOrder.id)
-    console.log(razerpayOrder)
+  try {
+    const razerpayOrder = await RPcreateOrder(razorpayOrderObj);
+    res.send(razerpayOrder.id);
+    console.log(razerpayOrder);
     let razorpayOrder = razorpayOrders(razerpayOrder);
-    await razorpayOrder.save()
-  
+    await razorpayOrder.save();
 
     if (!isSuccessful) {
       let time = 0;
@@ -684,15 +685,14 @@ route.post("/order", async (req, res) => {
           break;
         }
         console.log("Checking payment status");
-        console.log(order?.status );
+        console.log(order?.status);
         await new Promise((resolve) => setTimeout(resolve, 5000));
         time++;
       }
     }
-  }
-  catch(err){
-    console.log(err)
-    res.send("Error in creating order")
+  } catch (err) {
+    console.log(err);
+    res.send("Error in creating order");
   }
   let newLevelUpdate = [
     {
@@ -731,12 +731,12 @@ route.post("/order", async (req, res) => {
       });
     });
   try {
-    if (isSuccessful){
-    await Itemlist.updateMany(
-      { name: { $in: newOrder.items } },
-      { $inc: { count: -1 } }
-    );
-  }
+    if (isSuccessful) {
+      await Itemlist.updateMany(
+        { name: { $in: newOrder.items } },
+        { $inc: { count: -1 } }
+      );
+    }
     itemsUpdate();
   } catch (err) {
     // res.status(400).json({
@@ -749,19 +749,19 @@ route.post("/order", async (req, res) => {
   if (isSuccessful) {
     let studentIDReq = req.body.studentID;
     try {
-        const filter = { studentID: studentIDReq };
-        let updateData = {
-          level: newOrder.futureLevel,
-        };
-        let updatedData = await Studentlist.findOneAndUpdate(filter, {
-          level: newOrder.futureLevel,
-          program: newOrder.program,
-          enableBtn: newOrder.enableBtn,
-          transferBool: newOrder.transferBool,
-          $push: { levelOrders: newLevelUpdate, certificates: reqCertificate },
-        });
-        //res.send(JSON.stringify({ status: true, message: "Student updated!" }));
-        console.log("Student updated!");
+      const filter = { studentID: studentIDReq };
+      let updateData = {
+        level: newOrder.futureLevel,
+      };
+      let updatedData = await Studentlist.findOneAndUpdate(filter, {
+        level: newOrder.futureLevel,
+        program: newOrder.program,
+        enableBtn: newOrder.enableBtn,
+        transferBool: newOrder.transferBool,
+        $push: { levelOrders: newLevelUpdate, certificates: reqCertificate },
+      });
+      //res.send(JSON.stringify({ status: true, message: "Student updated!" }));
+      console.log("Student updated!");
     } catch (err) {
       console.log(err);
     }
@@ -769,7 +769,7 @@ route.post("/order", async (req, res) => {
 });
 route.post("/getallorders", async (req, res) => {
   try {
-    let allOrders = await Orderslist.find({status: "Success",}, { __v: 0 });
+    let allOrders = await Orderslist.find({ status: "Success" }, { __v: 0 });
     if (allOrders) {
       res.status(200).json({
         status: true,
@@ -911,6 +911,200 @@ route.post("/data", async (req, res) => {
     let tShirtArr = [];
 
     let onlyItems = [];
+
+    data[i].stock.forEach(function (elem) {
+      let currentDt = new Date(elem.enrollDate).toLocaleDateString("en-US");
+      if (new Date(currentDt) >= new Date(endDt)) {
+        return;
+      }
+      if (new Date(currentDt) <= new Date(startDt)) {
+        return;
+      }
+      onlyItems.push(elem.items);
+      let enrollStu = {
+        studentName: elem.studentName,
+        state: elem.state,
+        level: elem.level,
+        district: elem.district,
+        enrollDate: elem.enrollDate,
+      };
+      oneOut.enrolledStudents.push(enrollStu);
+      tShirtArr.push("Tshirt-" + elem.tShirt);
+    });
+    const tShirtObj = tShirtArr.reduce((acc, currentValue) => {
+      acc[currentValue] = (acc[currentValue] || 0) + 1;
+      return acc;
+    }, {});
+    oneOut.tShirtObj = tShirtObj;
+    onlyItems = onlyItems.flat();
+    for (const num of onlyItems) {
+      counts[num] = counts[num] ? counts[num] + 1 : 1;
+    }
+    oneOut.count = counts;
+    counts = {};
+    out.push(oneOut);
+  }
+  console.log(out);
+  let orderData = await Orderslist.aggregate([
+    // {
+    //   $match: { status: "Success" },
+    // },
+    {
+      $match: {
+        createdAt: {
+          $gte: new Date(startDate).toLocaleDateString("en-US"),
+        },
+        status: "Success",
+      },
+    },
+    {
+      $group: { _id: "$franchise", orders: { $push: "$$ROOT" } },
+    },
+    {
+      $project: {
+        orders: {
+          studentID: 1,
+          futureLevel: 1,
+          items: 1,
+          currentLevel: 1,
+          createdAt: 1,
+        },
+      },
+    },
+  ]);
+  console.log("orderDATA - ", orderData);
+  let studentNameData = await getstudentInfo();
+  let orderOut = [];
+  for (var i = 0; i < orderData.length; i++) {
+    let oneOrderOut = {
+      franchiseName: orderData[i]._id,
+      ordered: [],
+      orderCounts: {},
+    };
+
+    let onlyItems = [];
+    orderData[i].orders.forEach(function (elem) {
+      let currentDt = new Date(elem.createdAt).toLocaleString("en-US").split(',')[0];
+      if (new Date(currentDt) > new Date(endDt)) {
+        return;
+      }
+      if (new Date(currentDt) < new Date(startDt)) {
+        return;
+      }
+      onlyItems.push(elem.items);
+      let stuData = studentNameData.filter(function (item) {
+        return item.studentID === elem.studentID;
+      });
+      console.log("StudentData  =  ", stuData, "elem ", elem);
+      let newOrd;
+      if (stuData) {
+        newOrd = {
+          studentName: stuData[0].studentName,
+          studentID: elem.studentID,
+          state: stuData[0].state,
+          currentLevel: elem.currentLevel,
+          futureLevel: elem.futureLevel,
+          district: stuData[0].district,
+          createdAt: elem.createdAt,
+        };
+        oneOrderOut.ordered.push(newOrd);
+      }
+    });
+    onlyItems = onlyItems.flat();
+    for (const num of onlyItems) {
+      Ordercounts[num] = Ordercounts[num] ? Ordercounts[num] + 1 : 1;
+    }
+    oneOrderOut.orderCounts = Ordercounts;
+    Ordercounts = {};
+    orderOut.push(oneOrderOut);
+  }
+  const map = new Map();
+  out.forEach((item) => map.set(item.franchiseName, item));
+  orderOut.forEach((item) =>
+    map.set(item.franchiseName, { ...map.get(item.franchiseName), ...item })
+  );
+  const mergedArr = Array.from(map.values());
+  let kirr = mergedArr;
+  for (i = 0; i < mergedArr.length; i++) {
+    var totalItems = {};
+    for (var key in mergedArr[i].count) {
+      totalItems[key] = mergedArr[i].count[key];
+    }
+    for (var key in mergedArr[i].orderCounts) {
+      if (totalItems[key]) {
+        totalItems[key] =
+          mergedArr[i].orderCounts[key] + mergedArr[i].count[key];
+      } else {
+        totalItems[key] = mergedArr[i].orderCounts[key];
+      }
+    }
+    // mergedArr[i]["totalItems"] = totalItems;
+    mergedArr[i]["totalItems"] = { ...totalItems, ...mergedArr[i].tShirtObj };
+    console.log(
+      "totalItems - ",
+      Object.keys(mergedArr[i]["totalItems"]).length
+    );
+    if (
+      Object.keys(mergedArr[i]["totalItems"]).length === 0 &&
+      mergedArr[i]["enrolledStudents"]
+    ) {
+      if (mergedArr[i]["enrolledStudents"].length == 0) {
+      delete mergedArr[i];
+      }
+    } else {
+      delete mergedArr[i]["count"];
+      delete mergedArr[i]["orderCounts"];
+    }
+  }
+  const filteredmergedArr = mergedArr.filter((object) => object !== null);
+  if (mergedArr) {
+    res.status(200).json({
+      status: true,
+      data: filteredmergedArr,
+    });
+  }
+});
+route.post("/tamilnadureport", async (req, res) => {
+  let startDate = req.body.startDate;
+  let endDate = req.body.endDate;
+  var counts = {};
+  var Ordercounts = {};
+  let date = req.body.date;
+
+  let endDt = new Date(endDate).toLocaleDateString("en-US");
+  let startDt = new Date(startDate).toLocaleDateString("en-US");
+  const data = await Studentlist.aggregate([
+    {
+      $match: { state: "Tamil Nadu" },
+    },
+    {
+      $group: { _id: "$franchise", stock: { $push: "$$ROOT" } },
+    },
+    {
+      $project: {
+        stock: {
+          items: 1,
+          studentName: 1,
+          state: 1,
+          level: 1,
+          district: 1,
+          enrollDate: 1,
+          tShirt: 1,
+        },
+      },
+    },
+  ]);
+  console.log(data);
+  let out = [];
+  for (var i = 0; i < data.length; i++) {
+    let oneOut = {
+      franchiseName: data[i]["_id"],
+      count: {},
+      enrolledStudents: [],
+    };
+    let tShirtArr = [];
+
+    let onlyItems = [];
     data[i].stock.forEach(function (elem) {
       let currentDt = new Date(elem.enrollDate).toLocaleDateString("en-US");
       if (new Date(currentDt) > new Date(endDt)) {
@@ -988,13 +1182,12 @@ route.post("/data", async (req, res) => {
       if (new Date(currentDt) < new Date(startDt)) {
         return;
       }
-      onlyItems.push(elem.items);
       let stuData = studentNameData.filter(function (item) {
         return item.studentID === elem.studentID;
       });
       console.log("StudentData  =  ", stuData, "elem ", elem);
       let newOrd;
-      if (stuData) {
+      if (stuData && stuData[0].state == "Tamil Nadu") {
         newOrd = {
           studentName: stuData[0].studentName,
           studentID: elem.studentID,
@@ -1005,6 +1198,7 @@ route.post("/data", async (req, res) => {
           createdAt: elem.createdAt,
         };
         oneOrderOut.ordered.push(newOrd);
+        onlyItems.push(elem.items);
       }
     });
     onlyItems = onlyItems.flat();
@@ -1037,20 +1231,9 @@ route.post("/data", async (req, res) => {
     }
     // mergedArr[i]["totalItems"] = totalItems;
     mergedArr[i]["totalItems"] = { ...totalItems, ...mergedArr[i].tShirtObj };
-    console.log(
-      "totalItems - ",
-      Object.keys(mergedArr[i]["totalItems"]).length
-    );
-    console.log("enrolledStudents- ", mergedArr[i]["enrolledStudents"].length);
-    if (
-      Object.keys(mergedArr[i]["totalItems"]).length === 0 &&
-      mergedArr[i]["enrolledStudents"].length == 0
-    ) {
-      delete mergedArr[i];
-    } else {
-      delete mergedArr[i]["count"];
-      delete mergedArr[i]["orderCounts"];
-    }
+
+    delete mergedArr[i]["count"];
+    delete mergedArr[i]["orderCounts"];
   }
   const filteredmergedArr = mergedArr.filter((object) => object !== null);
   if (mergedArr) {
@@ -1060,185 +1243,6 @@ route.post("/data", async (req, res) => {
     });
   }
 });
-route.post("/tamilnadureport", async (req, res) => {
-    let startDate = req.body.startDate;
-    let endDate = req.body.endDate;
-    var counts = {};
-    var Ordercounts = {};
-    let date = req.body.date;
-  
-    let endDt = new Date(endDate).toLocaleDateString("en-US");
-    let startDt = new Date(startDate).toLocaleDateString("en-US");
-    const data = await Studentlist.aggregate([
-      {
-        $match: { state: "Tamil Nadu" },
-      },
-      {
-        $group: { _id: "$franchise", stock: { $push: "$$ROOT" } },
-      },
-      {
-        $project: {
-          stock: {
-            items: 1,
-            studentName: 1,
-            state: 1,
-            level: 1,
-            district: 1,
-            enrollDate: 1,
-            tShirt: 1,
-          },
-        },
-      },
-    ]);
-    console.log(data);
-    let out = [];
-    for (var i = 0; i < data.length; i++) {
-      let oneOut = {
-        franchiseName: data[i]["_id"],
-        count: {},
-        enrolledStudents: [],
-      };
-      let tShirtArr = [];
-  
-      let onlyItems = [];
-      data[i].stock.forEach(function (elem) {
-        let currentDt = new Date(elem.enrollDate).toLocaleDateString("en-US");
-        if (new Date(currentDt) > new Date(endDt)) {
-          return;
-        }
-        if (new Date(currentDt) < new Date(startDt)) {
-          return;
-        }
-        onlyItems.push(elem.items);
-        let enrollStu = {
-          studentName: elem.studentName,
-          state: elem.state,
-          level: elem.level,
-          district: elem.district,
-          enrollDate: elem.enrollDate,
-        };
-        oneOut.enrolledStudents.push(enrollStu);
-        tShirtArr.push("Tshirt-" + elem.tShirt);
-      });
-      const tShirtObj = tShirtArr.reduce((acc, currentValue) => {
-        acc[currentValue] = (acc[currentValue] || 0) + 1;
-        return acc;
-      }, {});
-      oneOut.tShirtObj = tShirtObj;
-      onlyItems = onlyItems.flat();
-      for (const num of onlyItems) {
-        counts[num] = counts[num] ? counts[num] + 1 : 1;
-      }
-      oneOut.count = counts;
-      counts = {};
-      out.push(oneOut);
-    }
-    console.log(out);
-    let orderData = await Orderslist.aggregate([
-      {
-        $match: { status: "Success" },
-      },
-      // {
-      //   $match: {
-      //     createdAt: {
-      //       $gte: new Date(startDate).toLocaleDateString("en-US"),
-      //     },
-      //   },
-      // },
-      {
-        $group: { _id: "$franchise", orders: { $push: "$$ROOT" } },
-      },
-      {
-        $project: {
-          orders: {
-            studentID: 1,
-            futureLevel: 1,
-            items: 1,
-            currentLevel: 1,
-            createdAt: 1,
-          },
-        },
-      },
-    ]);
-    console.log("orderDATA - ", orderData);
-    let studentNameData = await getstudentInfo();
-    let orderOut = [];
-    for (var i = 0; i < orderData.length; i++) {
-      let oneOrderOut = {
-        franchiseName: orderData[i]._id,
-        ordered: [],
-        orderCounts: {},
-      };
-      let onlyItems = [];
-      orderData[i].orders.forEach(function (elem) {
-        let currentDt = new Date(elem.createdAt).toLocaleDateString("en-US");
-        if (new Date(currentDt) > new Date(endDt)) {
-          return;
-        }
-        if (new Date(currentDt) < new Date(startDt)) {
-          return;
-        }
-        let stuData = studentNameData.filter(function (item) {
-          return item.studentID === elem.studentID;
-        });
-        console.log("StudentData  =  ", stuData, "elem ", elem);
-        let newOrd;
-        if (stuData && stuData[0].state == "Tamil Nadu") {
-          newOrd = {
-            studentName: stuData[0].studentName,
-            studentID: elem.studentID,
-            state: stuData[0].state,
-            currentLevel: elem.currentLevel,
-            futureLevel: elem.futureLevel,
-            district: stuData[0].district,
-            createdAt: elem.createdAt,
-          };
-          oneOrderOut.ordered.push(newOrd);
-          onlyItems.push(elem.items);
-        }
-      });
-      onlyItems = onlyItems.flat();
-      for (const num of onlyItems) {
-        Ordercounts[num] = Ordercounts[num] ? Ordercounts[num] + 1 : 1;
-      }
-      oneOrderOut.orderCounts = Ordercounts;
-      Ordercounts = {};
-      orderOut.push(oneOrderOut);
-    }
-    const map = new Map();
-    out.forEach((item) => map.set(item.franchiseName, item));
-    orderOut.forEach((item) =>
-      map.set(item.franchiseName, { ...map.get(item.franchiseName), ...item })
-    );
-    const mergedArr = Array.from(map.values());
-    let kirr = mergedArr;
-    for (i = 0; i < mergedArr.length; i++) {
-      var totalItems = {};
-      for (var key in mergedArr[i].count) {
-        totalItems[key] = mergedArr[i].count[key];
-      }
-      for (var key in mergedArr[i].orderCounts) {
-        if (totalItems[key]) {
-          totalItems[key] =
-            mergedArr[i].orderCounts[key] + mergedArr[i].count[key];
-        } else {
-          totalItems[key] = mergedArr[i].orderCounts[key];
-        }
-      }
-      // mergedArr[i]["totalItems"] = totalItems;
-      mergedArr[i]["totalItems"] = { ...totalItems, ...mergedArr[i].tShirtObj };
-      
-      delete mergedArr[i]["count"];
-      delete mergedArr[i]["orderCounts"];
-    }
-    const filteredmergedArr = mergedArr.filter((object) => object !== null);
-    if (mergedArr) {
-      res.status(200).json({
-        status: true,
-        data: filteredmergedArr,
-      });
-    }
-  });
 route.post("/dataperiod", async (req, res) => {
   var counts = {};
   var Ordercounts = {};
@@ -1294,7 +1298,10 @@ route.post("/dataperiod", async (req, res) => {
   console.log(out);
   let orderData = await Orderslist.aggregate([
     {
-      $match: { createdAt: new Date(date).toLocaleDateString("en-US"), status: "Success" },
+      $match: {
+        createdAt: new Date(date).toLocaleDateString("en-US"),
+        status: "Success",
+      },
     },
     {
       $group: { _id: "$franchise", orders: { $push: "$$ROOT" } },
@@ -1375,7 +1382,7 @@ route.post("/dataperiod", async (req, res) => {
     });
   }
 });
-route.post("/getStudentsCount",async (req,res) => {
+route.post("/getStudentsCount", async (req, res) => {
   try {
     let basicQuery = { isAdmin: false };
     let paramQuery = req.query;
@@ -1385,47 +1392,47 @@ route.post("/getStudentsCount",async (req,res) => {
     });
     const aggregationPipeline = [
       {
-          $group: {
-              _id: '$franchise',
-              numberOfStudents: { $sum: 1 }
-          }
-      }
-      ];
+        $group: {
+          _id: "$franchise",
+          numberOfStudents: { $sum: 1 },
+        },
+      },
+    ];
 
-      // Execute the aggregation pipeline
-      const result = await Studentlist.aggregate(aggregationPipeline);
-      const combinedJson = allFranchise.map(item2 => {
-        const matchingItem1 = result.find(item1 => item1._id === item2.email);
-        if (matchingItem1) {
-            return {
-                _id:item2._id,
-                franchiseID:item2.franchiseID,
-                name:item2.name,
-                email:item2.email,
-                contactNumber:item2.contactNumber,
-                state:item2.state,
-                district:item2.district,
-                username:item2.username,
-                password:item2.password,
-                registerDate:item2.registerDate,
-                isAdmin:item2.isAdmin,
-                approve:item2.approve,
-                numberOfStudents: matchingItem1.numberOfStudents
-            };
-        }
-        return item2;
+    // Execute the aggregation pipeline
+    const result = await Studentlist.aggregate(aggregationPipeline);
+    const combinedJson = allFranchise.map((item2) => {
+      const matchingItem1 = result.find((item1) => item1._id === item2.email);
+      if (matchingItem1) {
+        return {
+          _id: item2._id,
+          franchiseID: item2.franchiseID,
+          name: item2.name,
+          email: item2.email,
+          contactNumber: item2.contactNumber,
+          state: item2.state,
+          district: item2.district,
+          username: item2.username,
+          password: item2.password,
+          registerDate: item2.registerDate,
+          isAdmin: item2.isAdmin,
+          approve: item2.approve,
+          numberOfStudents: matchingItem1.numberOfStudents,
+        };
+      }
+      return item2;
     });
-        if (result) {
-          res.status(200).json({
-            status: true,
-            data1: combinedJson
-          });
-        }else{
-          res.status(200).json({
-            status: true,
-            data2: allFranchise
-          });
-        }
+    if (result) {
+      res.status(200).json({
+        status: true,
+        data1: combinedJson,
+      });
+    } else {
+      res.status(200).json({
+        status: true,
+        data2: allFranchise,
+      });
+    }
   } catch (err) {
     console.log(err);
     res.status(400).json({
@@ -1433,7 +1440,7 @@ route.post("/getStudentsCount",async (req,res) => {
       message: "DB error",
     });
   }
-})
+});
 // HELPER FUNCTIONS
 async function getstudentInfo() {
   let studentData = await Studentlist.find(
@@ -1490,4 +1497,5 @@ function verifyToken(req, res, next) {
     res.sendStatus(403);
   }
 }
+
 module.exports = route;
