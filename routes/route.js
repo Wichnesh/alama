@@ -431,7 +431,7 @@ route.post("/multiplestudents", async (req, res) => {
           level: req.body.data[i].level,
           program: req.body.data[i].program,
           date: new Date().toLocaleDateString("en-US"),
-          cost: req.body.data[i].cost[0],
+          cost: req.body.data[i].cost,
           paymentID: order_id,
         },
       ];
