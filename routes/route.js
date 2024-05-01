@@ -910,17 +910,16 @@ route.post("/data", async (req, res) => {
       enrolledStudents: [],
     };
     let tShirtArr = [];
-    if(oneOut.franchiseName=="admin123"){
-      console.log("oneOut - ",oneOut);
-    }
+
     let onlyItems = [];
 
     data[i].stock.forEach(function (elem) {
+
       let currentDt = new Date(elem.enrollDate).toLocaleDateString("en-US");
-      if (new Date(currentDt) >= new Date(endDt)) {
+      if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
-      if (new Date(currentDt) <= new Date(startDt)) {
+      if (new Date(currentDt) < new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
@@ -955,7 +954,7 @@ route.post("/data", async (req, res) => {
     {
       $match: {
         createdAt: {
-          $gte: new Date(startDate).toLocaleDateString("en-US", {timeZone: "Asia/Kolkata"}),
+          $gte: new Date(startDate).toLocaleDateString("en-US"),
         },
         status: "Success",
       },
@@ -987,7 +986,7 @@ route.post("/data", async (req, res) => {
 
     let onlyItems = [];
     orderData[i].orders.forEach(function (elem) {
-      let currentDt = new Date(elem.createdAt).toLocaleString("en-US",{timeZone: "Asia/Kolkata"}).split(',')[0];
+      let currentDt = new Date(elem.createdAt).toLocaleString("en-US").split(',')[0];
       if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
@@ -1142,16 +1141,17 @@ route.post("/tamilnadureport", async (req, res) => {
   }
   console.log(out);
   let orderData = await Orderslist.aggregate([
-    {
-      $match: { status: "Success" },
-    },
     // {
-    //   $match: {
-    //     createdAt: {
-    //       $gte: new Date(startDate).toLocaleDateString("en-US"),
-    //     },
-    //   },
+    //   $match: { status: "Success" },
     // },
+    {
+      $match: {
+        createdAt: {
+          $gte: new Date(startDate).toLocaleDateString("en-US"),
+        },
+        status: "Success",
+      },
+    },
     {
       $group: { _id: "$franchise", orders: { $push: "$$ROOT" } },
     },
@@ -1178,7 +1178,7 @@ route.post("/tamilnadureport", async (req, res) => {
     };
     let onlyItems = [];
     orderData[i].orders.forEach(function (elem) {
-      let currentDt = new Date(elem.createdAt).toLocaleDateString("en-US", {timeZone: "Asia/Kolkata"});
+      let currentDt = new Date(elem.createdAt).toLocaleDateString("en-US").split(',')[0];
       if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
@@ -1302,7 +1302,7 @@ route.post("/dataperiod", async (req, res) => {
   let orderData = await Orderslist.aggregate([
     {
       $match: {
-        createdAt: new Date(date).toLocaleDateString("en-US", {timeZone: "Asia/Kolkata"}),
+        createdAt: new Date(date).toLocaleDateString("en-US"),
         status: "Success",
       },
     },
