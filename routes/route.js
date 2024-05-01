@@ -909,7 +909,9 @@ route.post("/data", async (req, res) => {
       enrolledStudents: [],
     };
     let tShirtArr = [];
-
+    if(oneOut.franchiseName=="admin123"){
+      console.log("oneOut - ",oneOut);
+    }
     let onlyItems = [];
 
     data[i].stock.forEach(function (elem) {
@@ -952,7 +954,7 @@ route.post("/data", async (req, res) => {
     {
       $match: {
         createdAt: {
-          $gte: new Date(startDate).toLocaleDateString("en-US"),
+          $gte: new Date(startDate).toLocaleDateString("en-US", {timeZone: "Asia/Kolkata"}),
         },
         status: "Success",
       },
@@ -984,7 +986,7 @@ route.post("/data", async (req, res) => {
 
     let onlyItems = [];
     orderData[i].orders.forEach(function (elem) {
-      let currentDt = new Date(elem.createdAt).toLocaleString("en-US").split(',')[0];
+      let currentDt = new Date(elem.createdAt).toLocaleString("en-US",{timeZone: "Asia/Kolkata"}).split(',')[0];
       if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
@@ -1175,7 +1177,7 @@ route.post("/tamilnadureport", async (req, res) => {
     };
     let onlyItems = [];
     orderData[i].orders.forEach(function (elem) {
-      let currentDt = new Date(elem.createdAt).toLocaleDateString("en-US");
+      let currentDt = new Date(elem.createdAt).toLocaleDateString("en-US", {timeZone: "Asia/Kolkata"});
       if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
@@ -1299,7 +1301,7 @@ route.post("/dataperiod", async (req, res) => {
   let orderData = await Orderslist.aggregate([
     {
       $match: {
-        createdAt: new Date(date).toLocaleDateString("en-US"),
+        createdAt: new Date(date).toLocaleDateString("en-US", {timeZone: "Asia/Kolkata"}),
         status: "Success",
       },
     },
