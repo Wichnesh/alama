@@ -432,7 +432,7 @@ route.post("/multiplestudents", async (req, res) => {
           program: req.body.data[i].program,
           date: new Date().toLocaleDateString("en-US"),
           cost: req.body.data[i].cost[0],
-          paymentID: req.body.data[i].paymentID,
+          paymentID: order_id,
         },
       ];
       let newStudent = Studentlist({
@@ -663,13 +663,14 @@ route.post("/order", async (req, res) => {
   var isSuccessful = req.body.isSuccessful ?? false;
   const razorpayOrderObj = req.body.razorpayOrderObj;
   console.log(req.body);
+  let razorpayOrder;
   console.log(razorpayOrderObj);
   // if isSuccessful is false, then wait for the payment to be successful while checking the paymentID every 5 seconds for 5 minutes
   try {
     const razerpayOrder = await RPcreateOrder(razorpayOrderObj);
     res.send(razerpayOrder.id);
     console.log(razerpayOrder);
-    let razorpayOrder = razorpayOrders(razerpayOrder);
+    razorpayOrder = razorpayOrders(razerpayOrder);
     await razorpayOrder.save();
 
     if (!isSuccessful) {
@@ -700,7 +701,7 @@ route.post("/order", async (req, res) => {
       program: req.body.program,
       date: new Date().toLocaleDateString("en-US"),
       cost: req.body.cost,
-      paymentID: req.body.paymentID,
+      paymentID: razorpayOrder.id,
     },
   ];
   let reqCertificate = req.body.certificate;
