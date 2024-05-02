@@ -1007,7 +1007,7 @@ route.post("/data", async (req, res) => {
           currentLevel: elem.currentLevel,
           futureLevel: elem.futureLevel,
           district: stuData[0].district,
-          createdAt: elem.createdAt,
+          createdAt: elem.createdAt.split(",")[0],
         };
         oneOrderOut.ordered.push(newOrd);
       }
@@ -1193,7 +1193,7 @@ route.post("/tamilnadureport", async (req, res) => {
           currentLevel: elem.currentLevel,
           futureLevel: elem.futureLevel,
           district: stuData[0].district,
-          createdAt: elem.createdAt,
+          createdAt: elem.createdAt.split(",")[0],
         };
         oneOrderOut.ordered.push(newOrd);
       }
