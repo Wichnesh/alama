@@ -1496,17 +1496,24 @@ async function newFranchiseID() {
   let newID = "AF0000" + franchiseCount;
   return newID;
 }
+var exist = 0;
 async function newStudentID(stateName, franchiseName) {
   console.log(stateName);
   console.log(franchiseName);
   let studentsList = await Studentlist.find({});
   let studentsCartList = await StudentCartlist.find({});
-  let studentsCount = studentsList.length + studentsCartList.length;
+  let studentsCount = studentsList.length + studentsCartList.length + 1 + exist;
   let studentID =
     stateName.toUpperCase().slice(0, 2) +
     franchiseName.toUpperCase().slice(0, 2) +
     "0000" +
     studentsCount;
+  let newStudentIDFind = await Studentlist.find({studentID:studentID});
+  if(newStudentIDFind.length>0){
+    exist= exist+1;
+    return newStudentID(stateName,franchiseName)
+  }
+  exist=0;
   return studentID;
 }
 async function generateStudentID() {
