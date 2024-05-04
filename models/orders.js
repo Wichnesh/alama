@@ -38,7 +38,7 @@ const ordersSchema = new mongoose.Schema({
   },
   createdAt: {
     type: String,
-    default: new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"})
+    default: new Date().toLocaleString("en-US")
   },
 });
 
