@@ -704,6 +704,9 @@ route.post("/order", async (req, res) => {
       paymentID: razorpayOrder.id,
     },
   ];
+  let razor_createdAt = razorpayOrder.created_at;
+  const date = new Date(razor_createdAt * 1000);
+   const timeString = date. toLocaleString();
   let reqCertificate = req.body.certificate;
   let newOrder = Orderslist({
     studentID: req.body.studentID,
@@ -714,7 +717,7 @@ route.post("/order", async (req, res) => {
     enableBtn: req.body.enableBtn,
     transferBool: req.body.transferBool,
     status: isSuccessful ? "Success" : "Pending",
-
+    createdAt: timeString,
     program: req.body.program,
   });
   newOrder
