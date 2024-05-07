@@ -1490,10 +1490,17 @@ async function generateID() {
   }
   return genID;
 }
+var franchiseExist = 0;
 async function newFranchiseID() {
   let franchises = await Franchiselist.find({});
-  let franchiseCount = franchises.length;
+  let franchiseCount = franchises.length+franchiseExist;
   let newID = "AF0000" + franchiseCount;
+  let newFranchiseIDFind = await Franchiselist.find({FranchiseID:newID});
+  if(newFranchiseIDFind.length>0){
+    franchiseExist= franchiseExist+1;
+    return newFranchiseID()
+  }
+  franchiseExist=0;
   return newID;
 }
 var exist = 0;
