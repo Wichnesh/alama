@@ -1495,7 +1495,7 @@ async function newFranchiseID() {
   let franchises = await Franchiselist.find({});
   let franchiseCount = franchises.length+franchiseExist;
   let newID = "AF0000" + franchiseCount;
-  let newFranchiseIDFind = await Franchiselist.find({FranchiseID:newID});
+  let newFranchiseIDFind = await Franchiselist.find({franchiseID:newID});
   if(newFranchiseIDFind.length>0){
     franchiseExist= franchiseExist+1;
     return newFranchiseID()
