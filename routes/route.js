@@ -210,7 +210,7 @@ route.post("/studentcartreg", async (req, res) => {
   ];
   let newStudent = StudentCartlist({
     studentID: req.body.studentID,
-    enrollDate: new Date(new Date(req.body.enrollDate).toISOString().split('T')[0]).toLocaleDateString("en-US", { year: "numeric", month: "numeric", day: "numeric" }),
+    enrollDate: new Date(req.body.enrollDate).toISOString().split('T')[0],
     studentName: req.body.studentName,
     address: req.body.address,
     state: req.body.state,
@@ -272,7 +272,7 @@ route.post("/student-reg", async (req, res) => {
   ];
   let newStudent = Studentlist({
     studentID: req.body.studentID,
-    enrollDate: new Date(new Date(req.body.enrollDate).toISOString().split('T')[0]).toLocaleDateString("en-US", { year: "numeric", month: "numeric", day: "numeric" }),
+    enrollDate: new Date(req.body.enrollDate).toISOString().split('T')[0],
     studentName: req.body.studentName,
     address: req.body.address,
     state: req.body.state,
