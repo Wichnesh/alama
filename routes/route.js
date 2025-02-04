@@ -272,7 +272,7 @@ route.post("/student-reg", async (req, res) => {
   ];
   let newStudent = Studentlist({
     studentID: req.body.studentID,
-    enrollDate: ew Date(req.body.enrollDate).toISOString().split('T')[0],
+    enrollDate: new Date(req.body.enrollDate).toISOString().split('T')[0],
     studentName: req.body.studentName,
     address: req.body.address,
     state: req.body.state,
