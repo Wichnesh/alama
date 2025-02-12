@@ -386,7 +386,7 @@ route.post("/multiplestudents", async (req, res) => {
   console.log(req.body);
   var razorpayOrderObj = req.body.razorpayOrderObj;
   var isSuccessful = req.body.isSuccessful;
-  var order_id;
+  var order_id, razopayOrderCreatedAt;
   try {
     const razerpayOrder = await RPcreateOrder(razorpayOrderObj);
     if (razerpayOrder.id) {
@@ -394,6 +394,7 @@ route.post("/multiplestudents", async (req, res) => {
       console.log(razerpayOrder);
       let razorpayOrder = razorpayOrders(razerpayOrder);
       razorpayOrder.notes = { ...razorpayOrder?.notes, ...req.body.data };
+      razopayOrderCreatedAt = razorpayOrder.created_at;
       await razorpayOrder.save();
       order_id = razorpayOrder.id;
 
@@ -435,11 +436,11 @@ route.post("/multiplestudents", async (req, res) => {
           paymentID: order_id,
         },
       ];
+      const date = new Date(razopayOrderCreatedAt * 1000);
+      const formattedDate = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
       let newStudent = Studentlist({
         studentID: req.body.data[i].studentID,
-        enrollDate: new Date(req.body.data[i].enrollDate).toLocaleDateString(
-          "en-US"
-        ),
+        enrollDate: formattedDate,
         studentName: req.body.data[i].studentName,
         address: req.body.data[i].address,
         state: req.body.data[i].state,
