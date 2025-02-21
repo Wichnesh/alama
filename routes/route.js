@@ -427,19 +427,24 @@ route.post("/multiplestudents", async (req, res) => {
       await StudentCartlist.findOneAndRemove({
         studentID: req.body.data[i].studentID,
       });
+      const date = new Date(razopayOrderCreatedAt * 1000);
+      const formattedDate = date.toISOString().split("T")[0]; // Format date as YYYY-MM-DD
+      const formattedDateTime = date.toISOString(); // Format date as YYYY-MM-DDTHH:mm:ss.sssZ
+
       let newLevelUpdate = [
         {
           level: req.body.data[i].level,
           program: req.body.data[i].program,
-          date: new Date().toLocaleDateString("en-US"),
+          date: formattedDateTime,
           cost: req.body.data[i].cost,
           paymentID: order_id,
         },
       ];
-      const date = new Date(razopayOrderCreatedAt * 1000);
-      const formattedDate = `${
-        date.getMonth() + 1
-      }/${date.getDate()}/${date.getFullYear()}`;
+      // const date = new Date(razopayOrderCreatedAt * 1000);
+      // const formattedDate = `${
+      //   date.getMonth() + 1
+      // }/${date.getDate()}/${date.getFullYear()}`;
+
       let newStudent = Studentlist({
         studentID: req.body.data[i].studentID,
         enrollDate: formattedDate,
