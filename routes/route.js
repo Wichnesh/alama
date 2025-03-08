@@ -8,19 +8,17 @@ var Itemlist = require("../models/items");
 var Transactionlist = require("../models/transaction");
 var Orderslist = require("../models/orders");
 var razorpayOrders = require("../models/razorpayOrders");
-const mongoose = require("mongoose");
-const studentsCart = require("../models/studentsCart");
-const {
-  createOrder,
-  RPcreateOrder,
-  RPcheckStatus,
-} = require("../utils/razorpayApis");
+// const mongoose = require("mongoose");
+// const studentsCart = require("../models/studentsCart");
+const { RPcreateOrder, RPcheckStatus } = require("../utils/razorpayApis");
 
 let totalItems;
 itemsUpdate();
+
 async function itemsUpdate() {
   totalItems = await Itemlist.find({});
 }
+
 //MAKE ADMIN
 route.post("/makeAdmin", async (req, res, next) => {
   let { franchiseID } = req.body;
@@ -38,17 +36,13 @@ route.post("/makeAdmin", async (req, res, next) => {
     });
   }
 });
+
 // LOGINUSER
 route.post("/login", async (req, res, next) => {
   let userName = req.body.userName;
   let password = req.body.password;
-  let user = {
-    username: userName,
-    password,
-  };
   try {
     let userCheck = await Franchiselist.findOne({ username: userName.trim() });
-    console.log(userCheck);
     if (userCheck) {
       if (userCheck.approve == true && userCheck.password == password) {
         const userData = {
@@ -56,7 +50,6 @@ route.post("/login", async (req, res, next) => {
           approve: userCheck.approve,
           // Add more user data as needed
         };
-        // Generate JWT token with user data
         const token = jwt.sign(userData, "your_secret_key", {
           expiresIn: "2 days",
         });
@@ -96,9 +89,7 @@ route.post("/generateID", async (req, res, next) => {
   let genID = await newFranchiseID();
   res.send(JSON.stringify({ status: true, data: genID }));
 });
-// route.post("/check", (req, res) => {
-//   console.log(req.body.data[0]);
-// });
+
 route.post("/generate-studentid", async (req, res, next) => {
   let userName = req.body.username;
   let currentFranchise = await Franchiselist.find({ username: userName });
@@ -108,9 +99,17 @@ route.post("/generate-studentid", async (req, res, next) => {
   );
   res.send(JSON.stringify({ status: true, data: genID.toString() }));
 });
+
 // FRANCHISE REGISTRATION
 route.post("/franchise-reg", async (req, res, next) => {
   let trimuname = req.body.username;
+  let registerDate = new Date(req.body.registerDate);
+  if (isNaN(registerDate.getTime())) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid date format",
+    });
+  }
   let newFranchise = Franchiselist({
     franchiseID: req.body.franchiseID,
     name: req.body.name,
@@ -120,7 +119,7 @@ route.post("/franchise-reg", async (req, res, next) => {
     district: req.body.district,
     username: trimuname.trim(),
     password: req.body.password,
-    registerDate: req.body.registerDate,
+    registerDate: registerDate.toISOString(),
   });
   newFranchise
     .save()
@@ -203,14 +202,14 @@ route.post("/studentcartreg", async (req, res) => {
     {
       level: req.body.level,
       program: req.body.program,
-      date: new Date().toLocaleDateString("en-US"),
+      date: new Date().toISOString(),
       cost: req.body.cost,
       paymentID: req.body.paymentID,
     },
   ];
   let newStudent = StudentCartlist({
     studentID: req.body.studentID,
-    enrollDate: new Date(req.body.enrollDate).toISOString().split("T")[0],
+    enrollDate: new Date(req.body.enrollDate).toISOString(),
     studentName: req.body.studentName,
     address: req.body.address,
     state: req.body.state,
@@ -265,14 +264,14 @@ route.post("/student-reg", async (req, res) => {
     {
       level: req.body.level,
       program: req.body.program,
-      date: new Date().toLocaleDateString("en-US"),
+      date: new Date().toISOString(),
       cost: req.body.cost,
       paymentID: req.body.paymentID,
     },
   ];
   let newStudent = Studentlist({
     studentID: req.body.studentID,
-    enrollDate: new Date(req.body.enrollDate).toISOString().split("T")[0],
+    enrollDate: new Date(req.body.enrollDate).toISOString(),
     studentName: req.body.studentName,
     address: req.body.address,
     state: req.body.state,
@@ -350,7 +349,6 @@ route.post("/student-reg", async (req, res) => {
 
 // EDIT STUDENT
 route.post("/student-update/:id", async (req, res) => {
-  let studentFind;
   var removeFields = [
     "studentID",
     "enrollDate",
@@ -428,7 +426,6 @@ route.post("/multiplestudents", async (req, res) => {
         studentID: req.body.data[i].studentID,
       });
       const date = new Date(razopayOrderCreatedAt * 1000);
-      const formattedDate = date.toISOString().split("T")[0]; // Format date as YYYY-MM-DD
       const formattedDateTime = date.toISOString(); // Format date as YYYY-MM-DDTHH:mm:ss.sssZ
 
       let newLevelUpdate = [
@@ -440,14 +437,9 @@ route.post("/multiplestudents", async (req, res) => {
           paymentID: order_id,
         },
       ];
-      // const date = new Date(razopayOrderCreatedAt * 1000);
-      // const formattedDate = `${
-      //   date.getMonth() + 1
-      // }/${date.getDate()}/${date.getFullYear()}`;
-
       let newStudent = Studentlist({
         studentID: req.body.data[i].studentID,
-        enrollDate: formattedDate,
+        enrollDate: formattedDateTime,
         studentName: req.body.data[i].studentName,
         address: req.body.data[i].address,
         state: req.body.data[i].state,
@@ -677,7 +669,6 @@ route.post("/order", async (req, res) => {
   try {
     const razerpayOrder = await RPcreateOrder(razorpayOrderObj);
     res.send(razerpayOrder.id);
-    console.log(razerpayOrder);
     razorpayOrder = razorpayOrders(razerpayOrder);
     await razorpayOrder.save();
 
@@ -709,12 +700,12 @@ route.post("/order", async (req, res) => {
     {
       level: req.body.futureLevel,
       program: req.body.program,
-      date: date.toLocaleDateString("en-US"),
+      date: date.toISOString(),
       cost: req.body.cost,
       paymentID: razorpayOrder.id,
     },
   ];
-  const timeString = date.toLocaleString();
+  const timeString = date.toISOString();
   let reqCertificate = req.body.certificate;
   let newOrder = Orderslist({
     studentID: req.body.studentID,
@@ -892,8 +883,8 @@ route.post("/data", async (req, res) => {
   var counts = {};
   var Ordercounts = {};
 
-  let endDt = new Date(endDate).toLocaleDateString("en-US");
-  let startDt = new Date(startDate).toLocaleDateString("en-US");
+  let endDt = new Date(endDate).toISOString();
+  let startDt = new Date(startDate).toISOString();
   const data = await Studentlist.aggregate([
     {
       $group: { _id: "$franchise", stock: { $push: "$$ROOT" } },
@@ -925,7 +916,7 @@ route.post("/data", async (req, res) => {
     let onlyItems = [];
 
     data[i].stock.forEach(function (elem) {
-      let currentDt = new Date(elem.enrollDate).toLocaleDateString("en-US");
+      let currentDt = new Date(elem.enrollDate).toISOString();
       if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
@@ -938,7 +929,7 @@ route.post("/data", async (req, res) => {
         state: elem.state,
         level: elem.level,
         district: elem.district,
-        enrollDate: elem.enrollDate,
+        enrollDate: new Date(elem.enrollDate).toLocaleDateString("en-GB"), // Convert to dd/mm/yyyy format,
       };
       oneOut.enrolledStudents.push(enrollStu);
       tShirtArr.push("Tshirt-" + elem.tShirt);
@@ -964,7 +955,7 @@ route.post("/data", async (req, res) => {
     {
       $match: {
         createdAt: {
-          $gte: new Date(startDate).toLocaleDateString("en-US"),
+          $gte: new Date(startDate).toISOString(),
         },
         status: "Success",
       },
@@ -996,9 +987,7 @@ route.post("/data", async (req, res) => {
 
     let onlyItems = [];
     orderData[i].orders.forEach(function (elem) {
-      let currentDt = new Date(elem.createdAt)
-        .toLocaleString("en-US")
-        .split(",")[0];
+      let currentDt = new Date(elem.createdAt).toISOString().split(",")[0];
       if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
@@ -1009,7 +998,7 @@ route.post("/data", async (req, res) => {
       let stuData = studentNameData.filter(function (item) {
         return item.studentID === elem.studentID;
       });
-      console.log("StudentData  =  ", stuData, "elem ", elem);
+      // console.log("StudentData  =  ", stuData, "elem ", elem);
       let newOrd;
       if (stuData) {
         newOrd = {
@@ -1019,7 +1008,7 @@ route.post("/data", async (req, res) => {
           currentLevel: elem.currentLevel,
           futureLevel: elem.futureLevel,
           district: stuData[0].district,
-          createdAt: elem.createdAt.split(",")[0],
+          createdAt: new Date(elem.createdAt).toLocaleDateString("en-GB"),
         };
         oneOrderOut.ordered.push(newOrd);
       }
@@ -1084,8 +1073,8 @@ route.post("/tamilnadureport", async (req, res) => {
   var counts = {};
   var Ordercounts = {};
 
-  let endDt = new Date(endDate).toLocaleDateString("en-US");
-  let startDt = new Date(startDate).toLocaleDateString("en-US");
+  let endDt = new Date(endDate).toISOString();
+  let startDt = new Date(startDate).toISOString();
   const data = await Studentlist.aggregate([
     {
       $group: { _id: "$franchise", stock: { $push: "$$ROOT" } },
@@ -1116,7 +1105,7 @@ route.post("/tamilnadureport", async (req, res) => {
 
     let onlyItems = [];
     data[i].stock.forEach(function (elem) {
-      let currentDt = new Date(elem.enrollDate).toLocaleDateString("en-US");
+      let currentDt = new Date(elem.enrollDate).toISOString();
       if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
@@ -1129,7 +1118,7 @@ route.post("/tamilnadureport", async (req, res) => {
         state: elem.state,
         level: elem.level,
         district: elem.district,
-        enrollDate: elem.enrollDate,
+        enrollDate: new Date(elem.enrollDate).toLocaleDateString("en-GB"),
       };
       oneOut.enrolledStudents.push(enrollStu);
       tShirtArr.push("Tshirt-" + elem.tShirt);
@@ -1152,7 +1141,7 @@ route.post("/tamilnadureport", async (req, res) => {
     {
       $match: {
         createdAt: {
-          $gte: new Date(startDate).toLocaleDateString("en-US"),
+          $gte: new Date(startDate).toISOString(),
         },
         status: "Success",
       },
@@ -1184,9 +1173,7 @@ route.post("/tamilnadureport", async (req, res) => {
 
     let onlyItems = [];
     orderData[i].orders.forEach(function (elem) {
-      let currentDt = new Date(elem.createdAt)
-        .toLocaleDateString("en-US")
-        .split(",")[0];
+      let currentDt = new Date(elem.createdAt).toISOString();
       if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
@@ -1207,7 +1194,7 @@ route.post("/tamilnadureport", async (req, res) => {
           currentLevel: elem.currentLevel,
           futureLevel: elem.futureLevel,
           district: stuData[0].district,
-          createdAt: elem.createdAt.split(",")[0],
+          createdAt: new Date(elem.createdAt).toLocaleDateString("en-GB"),
         };
         oneOrderOut.ordered.push(newOrd);
       }
@@ -1255,7 +1242,7 @@ route.post("/tamilnadureport", async (req, res) => {
     }
   }
   const filteredmergedArr = mergedArr.filter((object) => object !== null);
-  let updatedfilteredmergedArr = [];
+  // let updatedfilteredmergedArr = [];
   var promises = filteredmergedArr.map(function (elem) {
     return Franchiselist.find(
       { username: elem.franchiseName },
@@ -1340,7 +1327,7 @@ route.post("/dataperiod", async (req, res) => {
   let orderData = await Orderslist.aggregate([
     {
       $match: {
-        createdAt: new Date(date).toLocaleDateString("en-US"),
+        createdAt: new Date(date).toISOString(),
         status: "Success",
       },
     },

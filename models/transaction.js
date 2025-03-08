@@ -20,7 +20,7 @@ const transactionSchema = new mongoose.Schema({
   },
   createdDate: {
     type: Date,
-    default: new Date().toLocaleDateString("en-US"),
+    default: Date.now,
   },
   currentQuantity: {
     type: Number,

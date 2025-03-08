@@ -58,4 +58,7 @@ const razorpayOrdersSchema = new mongoose.Schema({
   },
 });
 
-const razorpayOrders = (module.exports = mongoose.model("RazorpayOrders", razorpayOrdersSchema));
+const razorpayOrders = (module.exports = mongoose.model(
+  "RazorpayOrders",
+  razorpayOrdersSchema
+));

@@ -18,27 +18,27 @@ const ordersSchema = new mongoose.Schema({
     type: [String],
     required: true,
   },
-  franchise:{
-    type: String
+  franchise: {
+    type: String,
   },
-  program:{
-    type: String
+  program: {
+    type: String,
   },
-  enableBtn:{
-    type:Boolean,
-    default:false
+  enableBtn: {
+    type: Boolean,
+    default: false,
   },
-  transferBool:{
-    type:Boolean,
-    default:false
+  transferBool: {
+    type: Boolean,
+    default: false,
   },
   status: {
     type: String,
     default: "Pending",
   },
   createdAt: {
-    type: String,
-    default: new Date().toLocaleString("en-US")
+    type: Date,
+    default: String(Date.now),
   },
 });
 

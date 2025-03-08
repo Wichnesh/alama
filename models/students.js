@@ -7,41 +7,41 @@ const studentSchema = new mongoose.Schema({
     unique: true,
   },
   enrollDate: {
-    type: String
+    type: String,
   },
   studentName: {
-    type: String
+    type: String,
   },
   address: {
-    type: String
+    type: String,
   },
   district: {
-    type: String
+    type: String,
   },
   state: {
-    type: String
+    type: String,
   },
   mobileNumber: {
-    type: String
+    type: String,
   },
   email: {
     type: String,
-    required: true
+    required: true,
   },
   fatherName: {
-    type: String
+    type: String,
   },
   motherName: {
-    type: String
+    type: String,
   },
   franchise: {
-    type: String
+    type: String,
   },
   franchiseState: {
-    type: String
+    type: String,
   },
   level: {
-    type: String
+    type: String,
   },
   items: {
     type: [String],
@@ -54,29 +54,31 @@ const studentSchema = new mongoose.Schema({
     required: true,
   },
   cost: {
-    type: [Number]
+    type: [Number],
   },
   paymentID: {
-    type: String
+    type: String,
   },
-  certificates:{
-    type: [String]
+  certificates: {
+    type: [String],
   },
-  enableBtn:{
-    type:Boolean,
-    default:false
+  enableBtn: {
+    type: Boolean,
+    default: false,
   },
-  transferBool:{
-    type:Boolean,
-    default:false
+  transferBool: {
+    type: Boolean,
+    default: false,
   },
-  levelOrders: [{
-        level: String,
-        program: String,
-        date: Date,
-        cost: String,
-        paymentID: String
-    }]
+  levelOrders: [
+    {
+      level: String,
+      program: String,
+      date: String,
+      cost: String,
+      paymentID: String,
+    },
+  ],
 });
 
 const Studentlist = (module.exports = mongoose.model(
