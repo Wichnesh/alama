@@ -926,10 +926,10 @@ route.post("/data", async (req, res) => {
 
     data[i].stock.forEach(function (elem) {
       let currentDt = new Date(elem.enrollDate).toISOString();
-      if (new Date(currentDt) > new Date(endDt)) {
+      if (new Date(currentDt) >= new Date(endDt)) {
         return;
       }
-      if (new Date(currentDt) < new Date(startDt)) {
+      if (new Date(currentDt) <= new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
@@ -997,10 +997,10 @@ route.post("/data", async (req, res) => {
     let onlyItems = [];
     orderData[i].orders.forEach(function (elem) {
       let currentDt = new Date(elem.createdAt).toISOString().split(",")[0];
-      if (new Date(currentDt) > new Date(endDt)) {
+      if (new Date(currentDt) >= new Date(endDt)) {
         return;
       }
-      if (new Date(currentDt) < new Date(startDt)) {
+      if (new Date(currentDt) <= new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
@@ -1115,10 +1115,10 @@ route.post("/tamilnadureport", async (req, res) => {
     let onlyItems = [];
     data[i].stock.forEach(function (elem) {
       let currentDt = new Date(elem.enrollDate).toISOString();
-      if (new Date(currentDt) > new Date(endDt)) {
+      if (new Date(currentDt) >= new Date(endDt)) {
         return;
       }
-      if (new Date(currentDt) < new Date(startDt)) {
+      if (new Date(currentDt) <= new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
@@ -1183,10 +1183,10 @@ route.post("/tamilnadureport", async (req, res) => {
     let onlyItems = [];
     orderData[i].orders.forEach(function (elem) {
       let currentDt = new Date(elem.createdAt).toISOString();
-      if (new Date(currentDt) > new Date(endDt)) {
+      if (new Date(currentDt) >= new Date(endDt)) {
         return;
       }
-      if (new Date(currentDt) < new Date(startDt)) {
+      if (new Date(currentDt) <= new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
