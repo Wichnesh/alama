@@ -515,7 +515,7 @@ route.post("/getallstudents", async (req, res) => {
   try {
     let paramQuery = req.query;
     let allStudent = await Studentlist.find(paramQuery, { __v: 0 });
-    
+
     allStudent = allStudent.map(student => {
       student.levelOrders = student.levelOrders.map(order => {
         order.date = new Date(order.date).toISOString();
@@ -892,7 +892,8 @@ route.post("/data", async (req, res) => {
   var counts = {};
   var Ordercounts = {};
 
-  let endDt = new Date(endDate).toISOString();
+  // let endDt = new Date(endDate).toISOString();
+  let endDt = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString();
   let startDt = new Date(startDate).toISOString();
   const data = await Studentlist.aggregate([
     {
@@ -929,7 +930,7 @@ route.post("/data", async (req, res) => {
       if (new Date(currentDt) >= new Date(endDt)) {
         return;
       }
-      if (new Date(currentDt) <= new Date(startDt)) {
+      if (new Date(currentDt) < new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
@@ -993,14 +994,14 @@ route.post("/data", async (req, res) => {
       ordered: [],
       orderCounts: {},
     };
-
+    let endDateu = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString();
     let onlyItems = [];
     orderData[i].orders.forEach(function (elem) {
       let currentDt = new Date(elem.createdAt).toISOString().split(",")[0];
-      if (new Date(currentDt) >= new Date(endDt)) {
+      if (new Date(currentDt) > endDateu) {
         return;
       }
-      if (new Date(currentDt) <= new Date(startDt)) {
+      if (new Date(currentDt) < new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
@@ -1082,7 +1083,7 @@ route.post("/tamilnadureport", async (req, res) => {
   var counts = {};
   var Ordercounts = {};
 
-  let endDt = new Date(endDate).toISOString();
+  let endDt = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString();
   let startDt = new Date(startDate).toISOString();
   const data = await Studentlist.aggregate([
     {
@@ -1115,10 +1116,10 @@ route.post("/tamilnadureport", async (req, res) => {
     let onlyItems = [];
     data[i].stock.forEach(function (elem) {
       let currentDt = new Date(elem.enrollDate).toISOString();
-      if (new Date(currentDt) >= new Date(endDt)) {
+      if (new Date(currentDt) > new Date(endDt)) {
         return;
       }
-      if (new Date(currentDt) <= new Date(startDt)) {
+      if (new Date(currentDt) < new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
@@ -1181,12 +1182,13 @@ route.post("/tamilnadureport", async (req, res) => {
     };
 
     let onlyItems = [];
+    let endDateu = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString();
     orderData[i].orders.forEach(function (elem) {
       let currentDt = new Date(elem.createdAt).toISOString();
-      if (new Date(currentDt) >= new Date(endDt)) {
+      if (new Date(currentDt) > endDateu) {
         return;
       }
-      if (new Date(currentDt) <= new Date(startDt)) {
+      if (new Date(currentDt) < new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
