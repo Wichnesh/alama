@@ -425,14 +425,17 @@ route.post("/multiplestudents", async (req, res) => {
       await StudentCartlist.findOneAndRemove({
         studentID: req.body.data[i].studentID,
       });
-      const date = new Date(razopayOrderCreatedAt * 1000);
-      const formattedDateTime = date.toISOString(); // Format date as YYYY-MM-DDTHH:mm:ss.sssZ
+      const date = new Date(razopayOrderCreatedAt * 1000); // Convert timestamp to milliseconds
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+      const istDate = new Date(date.getTime() + istOffset);
 
+      // Format to ISO 8601 with IST offset (+05:30)
+      const istFormattedDateTime = istDate.toISOString().replace("Z", "+05:30");
       let newLevelUpdate = [
         {
           level: req.body.data[i].level,
           program: req.body.data[i].program,
-          date: formattedDateTime,
+          date: istFormattedDateTime,
           cost: req.body.data[i].cost,
           paymentID: order_id,
         },
@@ -704,12 +707,15 @@ route.post("/order", async (req, res) => {
     res.send("Error in creating order");
   }
   let razor_createdAt = razorpayOrder.created_at;
-  const date = new Date(razor_createdAt * 1000);
+  const date = new Date(razor_createdAt * 1000); // Convert timestamp to milliseconds
+  const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+  const istDate = new Date(date.getTime() + istOffset);
+  
   let newLevelUpdate = [
     {
       level: req.body.futureLevel,
       program: req.body.program,
-      date: date.toISOString(),
+      date: istDate.toISOString(),
       cost: req.body.cost,
       paymentID: razorpayOrder.id,
     },
@@ -887,14 +893,31 @@ route.post("/getitemtransaction", async (req, res) => {
   }
 });
 route.post("/data", async (req, res) => {
-  let startDate = req.body.startDate;
-  let endDate = req.body.endDate;
-  var counts = {};
-  var Ordercounts = {};
+  try {
+    const { startDate, endDate } = req.body;
+    const startDt = new Date(startDate).toISOString();
+    const endDt = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString();
 
-  // let endDt = new Date(endDate).toISOString();
-  let endDt = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString();
-  let startDt = new Date(startDate).toISOString();
+    const studentData = await getStudentData(startDt, endDt);
+    const orderData = await getOrderData(startDt, endDt);
+    const studentNameData = await getstudentInfo();
+
+    const mergedData = mergeData(studentData, orderData, studentNameData, startDt, endDt);
+
+    res.status(200).json({
+      status: true,
+      data: mergedData,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      status: false,
+      message: "Internal server error",
+    });
+  }
+});
+
+async function getStudentData(startDt, endDt) {
   const data = await Studentlist.aggregate([
     {
       $group: { _id: "$franchise", stock: { $push: "$$ROOT" } },
@@ -913,59 +936,54 @@ route.post("/data", async (req, res) => {
       },
     },
   ]);
-  console.log(data);
-  let out = [];
-  for (var i = 0; i < data.length; i++) {
-    let oneOut = {
-      franchiseName: data[i]["_id"],
-      count: {},
-      enrolledStudents: [],
-    };
-    let tShirtArr = [];
 
-    let onlyItems = [];
+  return data.map((franchise) => {
+    const enrolledStudents = [];
+    const tShirtArr = [];
+    const onlyItems = [];
 
-    data[i].stock.forEach(function (elem) {
-      let currentDt = new Date(elem.enrollDate).toISOString();
-      if (new Date(currentDt) >= new Date(endDt)) {
-        return;
-      }
-      if (new Date(currentDt) < new Date(startDt)) {
+    franchise.stock.forEach((elem) => {
+      const currentDt = new Date(elem.enrollDate).toISOString();
+      if (new Date(currentDt) >= new Date(endDt) || new Date(currentDt) < new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
-      let enrollStu = {
+      enrolledStudents.push({
         studentName: elem.studentName,
         state: elem.state,
         level: elem.level,
         district: elem.district,
-        enrollDate: new Date(elem.enrollDate).toLocaleDateString("en-GB"), // Convert to dd/mm/yyyy format,
-      };
-      oneOut.enrolledStudents.push(enrollStu);
+        enrollDate: new Date(elem.enrollDate).toLocaleDateString("en-GB"),
+      });
       tShirtArr.push("Tshirt-" + elem.tShirt);
     });
+
     const tShirtObj = tShirtArr.reduce((acc, currentValue) => {
       acc[currentValue] = (acc[currentValue] || 0) + 1;
       return acc;
     }, {});
-    oneOut.tShirtObj = tShirtObj;
-    onlyItems = onlyItems.flat();
-    for (const num of onlyItems) {
-      counts[num] = counts[num] ? counts[num] + 1 : 1;
-    }
-    oneOut.count = counts;
-    counts = {};
-    out.push(oneOut);
-  }
-  console.log(out);
-  let orderData = await Orderslist.aggregate([
-    // {
-    //   $match: { status: "Success" },
-    // },
+
+    const count = onlyItems.flat().reduce((acc, item) => {
+      acc[item] = (acc[item] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      franchiseName: franchise._id,
+      count,
+      enrolledStudents,
+      tShirtObj,
+    };
+  });
+}
+
+async function getOrderData(startDt, endDt) {
+  return await Orderslist.aggregate([
     {
       $match: {
         createdAt: {
-          $gte: new Date(startDate).toISOString(),
+          $gte: new Date(startDt),
+          $lt: new Date(endDt),
         },
         status: "Success",
       },
@@ -985,98 +1003,59 @@ route.post("/data", async (req, res) => {
       },
     },
   ]);
-  console.log("orderDATA - ", orderData);
-  let studentNameData = await getstudentInfo();
-  let orderOut = [];
-  for (var i = 0; i < orderData.length; i++) {
-    let oneOrderOut = {
-      franchiseName: orderData[i]._id,
-      ordered: [],
-      orderCounts: {},
-    };
-    let endDateu = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString();
-    let onlyItems = [];
-    orderData[i].orders.forEach(function (elem) {
-      let currentDt = new Date(elem.createdAt).toISOString().split(",")[0];
-      if (new Date(currentDt) > endDateu) {
-        return;
-      }
-      if (new Date(currentDt) < new Date(startDt)) {
+}
+
+function mergeData(studentData, orderData, studentNameData, startDt, endDt) {
+  const map = new Map();
+
+  studentData.forEach((item) => map.set(item.franchiseName, item));
+
+  orderData.forEach((franchise) => {
+    const ordered = [];
+    const orderCounts = {};
+    const onlyItems = [];
+
+    franchise.orders.forEach((elem) => {
+      const currentDt = new Date(elem.createdAt).toISOString();
+      if (new Date(currentDt) > new Date(endDt) || new Date(currentDt) < new Date(startDt)) {
         return;
       }
       onlyItems.push(elem.items);
-      let stuData = studentNameData.filter(function (item) {
-        return item.studentID === elem.studentID;
-      });
-      // console.log("StudentData  =  ", stuData, "elem ", elem);
-      let newOrd;
+      const stuData = studentNameData.find((item) => item.studentID === elem.studentID);
       if (stuData) {
-        newOrd = {
-          studentName: stuData[0].studentName,
+        ordered.push({
+          studentName: stuData.studentName,
           studentID: elem.studentID,
-          state: stuData[0].state,
+          state: stuData.state,
           currentLevel: elem.currentLevel,
           futureLevel: elem.futureLevel,
-          district: stuData[0].district,
+          district: stuData.district,
           createdAt: new Date(elem.createdAt).toLocaleDateString("en-GB"),
-        };
-        oneOrderOut.ordered.push(newOrd);
+        });
       }
     });
-    onlyItems = onlyItems.flat();
-    for (const num of onlyItems) {
-      Ordercounts[num] = Ordercounts[num] ? Ordercounts[num] + 1 : 1;
-    }
-    oneOrderOut.orderCounts = Ordercounts;
-    Ordercounts = {};
-    orderOut.push(oneOrderOut);
-  }
-  const map = new Map();
-  out.forEach((item) => map.set(item.franchiseName, item));
-  orderOut.forEach((item) =>
-    map.set(item.franchiseName, { ...map.get(item.franchiseName), ...item })
-  );
-  const mergedArr = Array.from(map.values());
 
-  for (i = 0; i < mergedArr.length; i++) {
-    var totalItems = {};
-    for (var key in mergedArr[i].count) {
-      totalItems[key] = mergedArr[i].count[key];
-    }
-    for (var key in mergedArr[i].orderCounts) {
-      if (totalItems[key]) {
-        totalItems[key] =
-          mergedArr[i].orderCounts[key] + mergedArr[i].count[key];
-      } else {
-        totalItems[key] = mergedArr[i].orderCounts[key];
-      }
-    }
-    // mergedArr[i]["totalItems"] = totalItems;
-    mergedArr[i]["totalItems"] = { ...totalItems, ...mergedArr[i].tShirtObj };
-    console.log(
-      "totalItems - ",
-      Object.keys(mergedArr[i]["totalItems"]).length
-    );
-    if (
-      Object.keys(mergedArr[i]["totalItems"]).length === 0 &&
-      mergedArr[i]["enrolledStudents"]
-    ) {
-      if (mergedArr[i]["enrolledStudents"].length == 0) {
-        delete mergedArr[i];
-      }
-    } else {
-      delete mergedArr[i]["count"];
-      delete mergedArr[i]["orderCounts"];
-    }
-  }
-  const filteredmergedArr = mergedArr.filter((object) => object !== null);
-  if (mergedArr) {
-    res.status(200).json({
-      status: true,
-      data: filteredmergedArr,
+    onlyItems.flat().forEach((item) => {
+      orderCounts[item] = (orderCounts[item] || 0) + 1;
     });
-  }
-});
+
+    map.set(franchise._id, {
+      ...map.get(franchise._id),
+      ordered,
+      orderCounts,
+    });
+  });
+
+  return Array.from(map.values()).map((item) => {
+    const totalItems = { ...item.count, ...item.orderCounts, ...item.tShirtObj };
+    return {
+      ...item,
+      totalItems,
+      count: undefined,
+      orderCounts: undefined,
+    };
+  }).filter((item) => item.enrolledStudents.length > 0 || Object.keys(item.totalItems).length > 0);
+}
 route.post("/tamilnadureport", async (req, res) => {
   let startDate = req.body.startDate;
   let endDate = req.body.endDate;
