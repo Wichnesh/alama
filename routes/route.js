@@ -515,6 +515,15 @@ route.post("/getallstudents", async (req, res) => {
   try {
     let paramQuery = req.query;
     let allStudent = await Studentlist.find(paramQuery, { __v: 0 });
+    
+    allStudent = allStudent.map(student => {
+      student.levelOrders = student.levelOrders.map(order => {
+        order.date = new Date(order.date).toISOString();
+        return order;
+      });
+      return student;
+    });
+
     if (allStudent) {
       res.status(200).json({
         status: true,
