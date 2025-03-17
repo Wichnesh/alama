@@ -953,7 +953,7 @@ async function getStudentData(startDt, endDt) {
         state: elem.state,
         level: elem.level,
         district: elem.district,
-        enrollDate: new Date(elem.enrollDate).toLocaleDateString("en-GB"),
+        enrollDate: elem.enrollDate
       });
       tShirtArr.push("Tshirt-" + elem.tShirt);
     });
@@ -1030,7 +1030,7 @@ function mergeData(studentData, orderData, studentNameData, startDt, endDt) {
           currentLevel: elem.currentLevel,
           futureLevel: elem.futureLevel,
           district: stuData.district,
-          createdAt: new Date(elem.createdAt).toLocaleDateString("en-GB"),
+          createdAt: elem.createdAt,
         });
       }
     });
