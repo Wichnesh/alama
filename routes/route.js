@@ -425,24 +425,20 @@ route.post("/multiplestudents", async (req, res) => {
       await StudentCartlist.findOneAndRemove({
         studentID: req.body.data[i].studentID,
       });
-      const date = new Date(razopayOrderCreatedAt * 1000); // Convert timestamp to milliseconds
-      const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
-      const istDate = new Date(date.getTime() + istOffset);
-
-      // Format to ISO 8601 with IST offset (+05:30)
-      const istFormattedDateTime = istDate.toISOString().replace("Z", "+05:30");
+      const date = new Date(razopayOrderCreatedAt * 1000);
+      const istDate = new Date(date.getTime());
       let newLevelUpdate = [
         {
           level: req.body.data[i].level,
           program: req.body.data[i].program,
-          date: istFormattedDateTime,
+          date: istDate,
           cost: req.body.data[i].cost,
           paymentID: order_id,
         },
       ];
       let newStudent = Studentlist({
         studentID: req.body.data[i].studentID,
-        enrollDate: istFormattedDateTime,
+        enrollDate: istDate,
         studentName: req.body.data[i].studentName,
         address: req.body.data[i].address,
         state: req.body.data[i].state,
@@ -519,8 +515,8 @@ route.post("/getallstudents", async (req, res) => {
     let paramQuery = req.query;
     let allStudent = await Studentlist.find(paramQuery, { __v: 0 });
 
-    allStudent = allStudent.map(student => {
-      student.levelOrders = student.levelOrders.map(order => {
+    allStudent = allStudent.map((student) => {
+      student.levelOrders = student.levelOrders.map((order) => {
         order.date = new Date(order.date).toISOString();
         return order;
       });
@@ -707,10 +703,9 @@ route.post("/order", async (req, res) => {
     res.send("Error in creating order");
   }
   let razor_createdAt = razorpayOrder.created_at;
-  const date = new Date(razor_createdAt * 1000); // Convert timestamp to milliseconds
-  const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
-  const istDate = new Date(date.getTime() + istOffset);
-  
+  const date = new Date(razor_createdAt * 1000);
+  const istDate = new Date(date.getTime());
+
   let newLevelUpdate = [
     {
       level: req.body.futureLevel,
@@ -896,13 +891,21 @@ route.post("/data", async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
     const startDt = new Date(startDate).toISOString();
-    const endDt = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString();
+    const endDt = new Date(
+      new Date(endDate).setDate(new Date(endDate).getDate() + 1)
+    ).toISOString();
 
     const studentData = await getStudentData(startDt, endDt);
     const orderData = await getOrderData(startDt, endDt);
     const studentNameData = await getstudentInfo();
 
-    const mergedData = mergeData(studentData, orderData, studentNameData, startDt, endDt);
+    const mergedData = mergeData(
+      studentData,
+      orderData,
+      studentNameData,
+      startDt,
+      endDt
+    );
 
     res.status(200).json({
       status: true,
@@ -944,7 +947,10 @@ async function getStudentData(startDt, endDt) {
 
     franchise.stock.forEach((elem) => {
       const currentDt = new Date(elem.enrollDate).toISOString();
-      if (new Date(currentDt) >= new Date(endDt) || new Date(currentDt) < new Date(startDt)) {
+      if (
+        new Date(currentDt) >= new Date(endDt) ||
+        new Date(currentDt) < new Date(startDt)
+      ) {
         return;
       }
       onlyItems.push(elem.items);
@@ -953,7 +959,7 @@ async function getStudentData(startDt, endDt) {
         state: elem.state,
         level: elem.level,
         district: elem.district,
-        enrollDate: elem.enrollDate
+        enrollDate: elem.enrollDate,
       });
       tShirtArr.push("Tshirt-" + elem.tShirt);
     });
@@ -1017,11 +1023,16 @@ function mergeData(studentData, orderData, studentNameData, startDt, endDt) {
 
     franchise.orders.forEach((elem) => {
       const currentDt = new Date(elem.createdAt).toISOString();
-      if (new Date(currentDt) > new Date(endDt) || new Date(currentDt) < new Date(startDt)) {
+      if (
+        new Date(currentDt) > new Date(endDt) ||
+        new Date(currentDt) < new Date(startDt)
+      ) {
         return;
       }
       onlyItems.push(elem.items);
-      const stuData = studentNameData.find((item) => item.studentID === elem.studentID);
+      const stuData = studentNameData.find(
+        (item) => item.studentID === elem.studentID
+      );
       if (stuData) {
         ordered.push({
           studentName: stuData.studentName,
@@ -1046,27 +1057,45 @@ function mergeData(studentData, orderData, studentNameData, startDt, endDt) {
     });
   });
 
-  return Array.from(map.values()).map((item) => {
-    const totalItems = { ...item.count, ...item.orderCounts, ...item.tShirtObj };
-    return {
-      ...item,
-      totalItems,
-      count: undefined,
-      orderCounts: undefined,
-    };
-  }).filter((item) => item.enrolledStudents.length > 0 || Object.keys(item.totalItems).length > 0);
+  return Array.from(map.values())
+    .map((item) => {
+      const totalItems = {
+        ...item.count,
+        ...item.orderCounts,
+        ...item.tShirtObj,
+      };
+      return {
+        ...item,
+        totalItems,
+        count: undefined,
+        orderCounts: undefined,
+      };
+    })
+    .filter(
+      (item) =>
+        item.enrolledStudents.length > 0 ||
+        Object.keys(item.totalItems).length > 0
+    );
 }
 route.post("/tamilnadureport", async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
     const startDt = new Date(startDate).toISOString();
-    const endDt = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString();
+    const endDt = new Date(
+      new Date(endDate).setDate(new Date(endDate).getDate() + 1)
+    ).toISOString();
 
     const studentData = await getStudentData(startDt, endDt);
     const orderData = await getOrderData(startDt, endDt);
     const studentNameData = await getstudentInfo();
 
-    const mergedData = mergeData(studentData, orderData, studentNameData, startDt, endDt);
+    const mergedData = mergeData(
+      studentData,
+      orderData,
+      studentNameData,
+      startDt,
+      endDt
+    );
 
     const tamilNaduData = await filterTamilNaduFranchises(mergedData);
 
@@ -1084,10 +1113,17 @@ route.post("/tamilnadureport", async (req, res) => {
 });
 
 async function filterTamilNaduFranchises(data) {
-  const tamilNaduFranchises = await Franchiselist.find({ state: "Tamil Nadu" }, { username: 1 });
-  const tamilNaduFranchiseNames = tamilNaduFranchises.map(franchise => franchise.username);
+  const tamilNaduFranchises = await Franchiselist.find(
+    { state: "Tamil Nadu" },
+    { username: 1 }
+  );
+  const tamilNaduFranchiseNames = tamilNaduFranchises.map(
+    (franchise) => franchise.username
+  );
 
-  return data.filter(item => tamilNaduFranchiseNames.includes(item.franchiseName));
+  return data.filter((item) =>
+    tamilNaduFranchiseNames.includes(item.franchiseName)
+  );
 }
 route.post("/dataperiod", async (req, res) => {
   var counts = {};
