@@ -431,14 +431,14 @@ route.post("/multiplestudents", async (req, res) => {
         {
           level: req.body.data[i].level,
           program: req.body.data[i].program,
-          date: istDate,
+          date: istDate.toISOString(),
           cost: req.body.data[i].cost,
           paymentID: order_id,
         },
       ];
       let newStudent = Studentlist({
         studentID: req.body.data[i].studentID,
-        enrollDate: istDate,
+        enrollDate: istDate.toISOString(),
         studentName: req.body.data[i].studentName,
         address: req.body.data[i].address,
         state: req.body.data[i].state,
