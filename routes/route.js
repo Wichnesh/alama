@@ -426,19 +426,23 @@ route.post("/multiplestudents", async (req, res) => {
         studentID: req.body.data[i].studentID,
       });
       const date = new Date(razopayOrderCreatedAt * 1000);
-      const istDate = new Date(date.getTime());
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+      const istDate = new Date(date.getTime() + istOffset);
+
+      // Format to ISO 8601 with IST offset (+05:30)
+      const istFormattedDateTime = istDate.toISOString().replace("Z", "+05:30");
       let newLevelUpdate = [
         {
           level: req.body.data[i].level,
           program: req.body.data[i].program,
-          date: istDate.toISOString(),
+          date: istFormattedDateTime,
           cost: req.body.data[i].cost,
           paymentID: order_id,
         },
       ];
       let newStudent = Studentlist({
         studentID: req.body.data[i].studentID,
-        enrollDate: istDate.toISOString(),
+        enrollDate: istFormattedDateTime,
         studentName: req.body.data[i].studentName,
         address: req.body.data[i].address,
         state: req.body.data[i].state,
@@ -704,18 +708,19 @@ route.post("/order", async (req, res) => {
   }
   let razor_createdAt = razorpayOrder.created_at;
   const date = new Date(razor_createdAt * 1000);
-  const istDate = new Date(date.getTime());
-
+  const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+  const istDate = new Date(date.getTime() + istOffset);
+  // Format to ISO 8601 with IST offset (+05:30)
+  const istFormattedDateTime = istDate.toISOString().replace("Z", "+05:30");
   let newLevelUpdate = [
     {
       level: req.body.futureLevel,
       program: req.body.program,
-      date: istDate.toISOString(),
+      date: istFormattedDateTime,
       cost: req.body.cost,
       paymentID: razorpayOrder.id,
     },
   ];
-  const timeString = date.toISOString();
   let reqCertificate = req.body.certificate;
   let newOrder = Orderslist({
     studentID: req.body.studentID,
@@ -726,7 +731,7 @@ route.post("/order", async (req, res) => {
     enableBtn: req.body.enableBtn,
     transferBool: req.body.transferBool,
     status: isSuccessful ? "Success" : "Pending",
-    createdAt: timeString,
+    createdAt: istFormattedDateTime,
     program: req.body.program,
   });
   newOrder
