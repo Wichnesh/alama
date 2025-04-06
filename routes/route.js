@@ -991,8 +991,17 @@ async function getStudentData(startDt, endDt) {
 async function getOrderData(startDt, endDt) {
   return await Orderslist.aggregate([
     {
+      $addFields: {
+        createdAtDate: {
+          $dateFromString: {
+            dateString: "$createdAt",
+          },
+        },
+      },
+    },
+    {
       $match: {
-        createdAt: {
+        createdAtDate: {
           $gte: new Date(startDt),
           $lt: new Date(endDt),
         },
