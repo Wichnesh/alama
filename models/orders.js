@@ -37,7 +37,7 @@ const ordersSchema = new mongoose.Schema({
     default: "Pending",
   },
   createdAt: {
-    type: Date,
+    type: String,
   },
 });
 
