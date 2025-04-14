@@ -11,6 +11,7 @@ var razorpayOrders = require("../models/razorpayOrders");
 // const mongoose = require("mongoose");
 // const studentsCart = require("../models/studentsCart");
 const { RPcreateOrder, RPcheckStatus } = require("../utils/razorpayApis");
+const { format } = require("path");
 
 let totalItems;
 itemsUpdate();
@@ -924,48 +925,32 @@ route.post("/getitemtransaction", async (req, res) => {
 //     });
 //   }
 // });
-const toISTDateRange = (startStr, endStr) => {
-  const timeZone = "Asia/Kolkata";
 
-  const startLocal = new Date(
-    new Date(startStr).toLocaleString("en-US", { timeZone })
-  );
-  startLocal.setHours(0, 0, 0, 0);
-
-  const endLocal = new Date(
-    new Date(endStr).toLocaleString("en-US", { timeZone })
-  );
-  endLocal.setHours(23, 59, 59, 999);
-
-  return { startDate: startLocal, endDate: endLocal };
-};
+// Function to convert date string to 'YYYY-MM-DD' format
+function convertDateFormat(dateStr) {
+  const [month, day, year] = dateStr.split("/"); // Split the string by "/"
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`; // Return in YYYY-MM-DD format
+}
 route.post("/data", async (req, res) => {
   try {
-    // const { startDate, endDate } = req.body;
-    const { startDt, endDt } = toISTDateRange(
-      req.body.startDate,
-      req.body.endDate
-    );
+    // let formattedStart = convertDateFormat(req.body.startDate);
+    // let formattedEnd = convertDateFormat(req.body.endDate);
+    // let { startDt, endDt } = toISTDateRange(formattedStart, formattedEnd);
 
-    console.log("Start Date (IST):", startDt.toISOString());
-    console.log("End Date (IST):", endDt.toISOString());
-
+    // console.log("Start Date:", startDt); // Should print the IST start date
+    // console.log("End Date:", endDt); // Should print the IST end date
+    // if (!startDt || !endDt) {
+    //   return res
+    //     .status(400)
+    //     .json({ status: false, message: "Invalid date format received" });
+    // }
+    startDt = convertDateFormat(req.body.startDate) + "T00:00:00.000+05:30";
+    endDt = convertDateFormat(req.body.endDate) + "T23:59:59.000+05:30";
     // Step 1: Get student data (enrollDate is a string)
     const studentData = await Studentlist.aggregate([
       {
-        $addFields: {
-          enrollDateObj: {
-            $cond: {
-              if: { $eq: [{ $type: "$enrollDate" }, "string"] },
-              then: { $dateFromString: { dateString: "$enrollDate" } },
-              else: "$enrollDate",
-            },
-          },
-        },
-      },
-      {
         $match: {
-          enrollDateObj: { $gte: startDt, $lt: endDt },
+          enrollDate: { $gte: startDt, $lt: endDt },
         },
       },
       {
@@ -997,20 +982,9 @@ route.post("/data", async (req, res) => {
     // Step 2: Get order data (createdAt is a string)
     const orderData = await Orderslist.aggregate([
       {
-        $addFields: {
-          createdAtObj: {
-            $cond: {
-              if: { $eq: [{ $type: "$createdAt" }, "string"] },
-              then: { $dateFromString: { dateString: "$createdAt" } },
-              else: "$createdAt",
-            },
-          },
-        },
-      },
-      {
         $match: {
           status: "Success",
-          createdAtObj: { $gte: startDt, $lt: endDt },
+          createdAt: { $gte: startDt, $lt: endDt },
         },
       },
       {
