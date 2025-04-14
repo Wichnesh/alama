@@ -933,6 +933,10 @@ route.post("/data", async (req, res) => {
 
     const endDt = new Date(req.body.endDate);
     endDt.setHours(23, 59, 59, 999); // 23:59:59.999
+    console.log("Start Date ---- :", startDt);
+    console.log("End Date ---- ", endDt);
+    console.log("Start Date:", startDt.toISOString());
+    console.log("End Date:", endDt.toISOString());
 
     // Step 1: Get student data (enrollDate is a string)
     const studentData = await Studentlist.aggregate([
