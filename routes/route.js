@@ -892,30 +892,210 @@ route.post("/getitemtransaction", async (req, res) => {
     });
   }
 });
+// route.post("/data", async (req, res) => {
+//   try {
+//     const { startDate, endDate } = req.body;
+//     const startDt = new Date(startDate).toISOString();
+//     const endDt = new Date(
+//       new Date(endDate).setDate(new Date(endDate).getDate() + 1)
+//     ).toISOString();
+
+//     const studentData = await getStudentData(startDt, endDt);
+//     const orderData = await getOrderData(startDt, endDt);
+//     const studentNameData = await getstudentInfo();
+
+//     const mergedData = mergeData(
+//       studentData,
+//       orderData,
+//       studentNameData,
+//       startDt,
+//       endDt
+//     );
+
+//     res.status(200).json({
+//       status: true,
+//       data: mergedData,
+//     });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({
+//       status: false,
+//       message: "Internal server error",
+//     });
+//   }
+// });
+
 route.post("/data", async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
-    const startDt = new Date(startDate).toISOString();
+    const startDt = new Date(startDate);
     const endDt = new Date(
       new Date(endDate).setDate(new Date(endDate).getDate() + 1)
-    ).toISOString();
-
-    const studentData = await getStudentData(startDt, endDt);
-    const orderData = await getOrderData(startDt, endDt);
-    const studentNameData = await getstudentInfo();
-
-    const mergedData = mergeData(
-      studentData,
-      orderData,
-      studentNameData,
-      startDt,
-      endDt
     );
 
-    res.status(200).json({
-      status: true,
-      data: mergedData,
+    // Step 1: Get student data (enrollDate is a string)
+    const studentData = await Studentlist.aggregate([
+      {
+        $addFields: {
+          enrollDateObj: {
+            $cond: {
+              if: { $eq: [{ $type: "$enrollDate" }, "string"] },
+              then: { $dateFromString: { dateString: "$enrollDate" } },
+              else: "$enrollDate",
+            },
+          },
+        },
+      },
+      {
+        $match: {
+          enrollDateObj: { $gte: startDt, $lt: endDt },
+        },
+      },
+      {
+        $group: {
+          _id: "$franchise",
+          enrolledStudents: {
+            $push: {
+              studentName: "$studentName",
+              state: "$state",
+              level: "$level",
+              district: "$district",
+              enrollDate: "$enrollDate",
+            },
+          },
+          tShirts: { $push: "$tShirt" },
+          itemsList: { $push: "$items" },
+        },
+      },
+      {
+        $project: {
+          franchiseName: "$_id",
+          enrolledStudents: 1,
+          tShirts: 1,
+          itemsList: 1,
+        },
+      },
+    ]);
+
+    // Step 2: Get order data (createdAt is a string)
+    const orderData = await Orderslist.aggregate([
+      {
+        $addFields: {
+          createdAtObj: {
+            $cond: {
+              if: { $eq: [{ $type: "$createdAt" }, "string"] },
+              then: { $dateFromString: { dateString: "$createdAt" } },
+              else: "$createdAt",
+            },
+          },
+        },
+      },
+      {
+        $match: {
+          status: "Success",
+          createdAtObj: { $gte: startDt, $lt: endDt },
+        },
+      },
+      {
+        $lookup: {
+          from: "studentlists",
+          localField: "studentID",
+          foreignField: "studentID",
+          as: "studentDetails",
+        },
+      },
+      { $unwind: "$studentDetails" },
+      {
+        $group: {
+          _id: "$franchise",
+          ordered: {
+            $push: {
+              studentName: "$studentDetails.studentName",
+              studentID: "$studentID",
+              state: "$studentDetails.state",
+              currentLevel: "$currentLevel",
+              futureLevel: "$futureLevel",
+              district: "$studentDetails.district",
+              createdAt: "$createdAt",
+            },
+          },
+          itemsList: { $push: "$items" },
+        },
+      },
+      {
+        $project: {
+          ordered: 1,
+          itemsList: 1,
+        },
+      },
+    ]);
+
+    // Step 3: Merge results
+    const map = new Map();
+
+    studentData.forEach((entry) => {
+      const tShirtObj = entry.tShirts.reduce((acc, size) => {
+        const label = "Tshirt-" + size;
+        acc[label] = (acc[label] || 0) + 1;
+        return acc;
+      }, {});
+
+      const count = entry.itemsList.flat().reduce((acc, item) => {
+        acc[item] = (acc[item] || 0) + 1;
+        return acc;
+      }, {});
+
+      map.set(entry.franchiseName, {
+        franchiseName: entry.franchiseName,
+        enrolledStudents: entry.enrolledStudents,
+        tShirtObj,
+        count,
+      });
     });
+
+    orderData.forEach((entry) => {
+      const orderCounts = entry.itemsList.flat().reduce((acc, item) => {
+        acc[item] = (acc[item] || 0) + 1;
+        return acc;
+      }, {});
+
+      const existing = map.get(entry._id) || {
+        franchiseName: entry._id,
+        enrolledStudents: [],
+        tShirtObj: {},
+        count: {},
+      };
+
+      map.set(entry._id, {
+        ...existing,
+        ordered: entry.ordered,
+        orderCounts,
+      });
+    });
+
+    const mergedData = Array.from(map.values())
+      .map((item) => {
+        const totalItems = {
+          ...item.count,
+          ...item.orderCounts,
+          ...item.tShirtObj,
+        };
+
+        return {
+          franchiseName: item.franchiseName,
+          enrolledStudents: item.enrolledStudents || [],
+          ordered: item.ordered || [],
+          tShirtObj: item.tShirtObj || {},
+          totalItems,
+        };
+      })
+      .filter(
+        (item) =>
+          item.enrolledStudents.length > 0 ||
+          Object.keys(item.totalItems).length > 0
+      );
+
+    res.status(200).json({ status: true, data: mergedData });
   } catch (err) {
     console.error(err);
     res.status(500).json({
