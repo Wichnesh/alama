@@ -924,19 +924,31 @@ route.post("/getitemtransaction", async (req, res) => {
 //     });
 //   }
 // });
+const toISTDateRange = (startStr, endStr) => {
+  const timeZone = "Asia/Kolkata";
 
+  const startLocal = new Date(
+    new Date(startStr).toLocaleString("en-US", { timeZone })
+  );
+  startLocal.setHours(0, 0, 0, 0);
+
+  const endLocal = new Date(
+    new Date(endStr).toLocaleString("en-US", { timeZone })
+  );
+  endLocal.setHours(23, 59, 59, 999);
+
+  return { startDate: startLocal, endDate: endLocal };
+};
 route.post("/data", async (req, res) => {
   try {
     // const { startDate, endDate } = req.body;
-    const startDt = new Date(req.body.startDate);
-    startDt.setHours(0, 0, 0, 0); // 00:00:00.000
+    const { startDt, endDt } = toISTDateRange(
+      req.body.startDate,
+      req.body.endDate
+    );
 
-    const endDt = new Date(req.body.endDate);
-    endDt.setHours(23, 59, 59, 999); // 23:59:59.999
-    console.log("Start Date ---- :", startDt);
-    console.log("End Date ---- ", endDt);
-    console.log("Start Date:", startDt.toISOString());
-    console.log("End Date:", endDt.toISOString());
+    console.log("Start Date (IST):", startDt.toISOString());
+    console.log("End Date (IST):", endDt.toISOString());
 
     // Step 1: Get student data (enrollDate is a string)
     const studentData = await Studentlist.aggregate([
