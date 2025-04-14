@@ -1264,11 +1264,8 @@ function mergeData(studentData, orderData, studentNameData, startDt, endDt) {
 }
 route.post("/tamilnadureport", async (req, res) => {
   try {
-    const { startDate, endDate } = req.body;
-    const startDt = new Date(startDate).toISOString();
-    const endDt = new Date(
-      new Date(endDate).setDate(new Date(endDate).getDate() + 1)
-    ).toISOString();
+    startDt = convertDateFormat(req.body.startDate) + "T00:00:00.000+05:30";
+    endDt = convertDateFormat(req.body.endDate) + "T23:59:59.000+05:30";
 
     const studentData = await getStudentData(startDt, endDt);
     const orderData = await getOrderData(startDt, endDt);
