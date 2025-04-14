@@ -927,11 +927,12 @@ route.post("/getitemtransaction", async (req, res) => {
 
 route.post("/data", async (req, res) => {
   try {
-    const { startDate, endDate } = req.body;
-    const startDt = new Date(startDate);
-    const endDt = new Date(
-      new Date(endDate).setDate(new Date(endDate).getDate() + 1)
-    );
+    // const { startDate, endDate } = req.body;
+    const startDt = new Date(req.body.startDate);
+    startDt.setHours(0, 0, 0, 0); // 00:00:00.000
+
+    const endDt = new Date(req.body.endDate);
+    endDt.setHours(23, 59, 59, 999); // 23:59:59.999
 
     // Step 1: Get student data (enrollDate is a string)
     const studentData = await Studentlist.aggregate([
