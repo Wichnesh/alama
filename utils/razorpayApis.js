@@ -4,11 +4,15 @@ const Razorpay = require("razorpay");
 
 const RPcreateOrder = async (body, split) => {
     var key_id;
+    console.log("Body",body)
     if(split){
+        console.log("Using test keys - TN");
+        
         key_id = process.env.RAZORPAY_KEY_ID_TN_TEST;
         key_secret = process.env.RAZORPAY_KEY_SECRET_TN_TEST;
     }
     else{
+        console.log("Using test keys - NOT TN");
         key_id = process.env.RAZORPAY_KEY_ID;
         key_secret = process.env.RAZORPAY_KEY_SECRET;
     }
@@ -29,11 +33,14 @@ const RPcreateOrder = async (body, split) => {
 
 const RPcheckStatus = async (orderId ,split) => {
     var key_id;
+    console.log("OrderId", orderId);
     if(split){
+        console.log("Using test keys - TN");
         key_id = process.env.RAZORPAY_KEY_ID_TN_TEST;
         key_secret = process.env.RAZORPAY_KEY_SECRET_TN_TEST;
     }
     else{
+        console.log("Using test keys - NOT TN");
         key_id = process.env.RAZORPAY_KEY_ID;
         key_secret = process.env.RAZORPAY_KEY_SECRET;
     }
