@@ -386,8 +386,17 @@ route.post("/multiplestudents", async (req, res) => {
   var razorpayOrderObj = req.body.razorpayOrderObj;
   var isSuccessful = req.body.isSuccessful;
   var order_id, razopayOrderCreatedAt;
+  let split = false;
+  console.log(razorpayOrderObj);
+  if(req.body.franchise){
+    let franchiseState = await findFranchiseStateByFranchiseUserName(req.body.franchise);
+    if(franchiseState && franchiseState == "Tamil Nadu"){
+        split = true;
+    }
+  }
+  
   try {
-    const razerpayOrder = await RPcreateOrder(razorpayOrderObj);
+    const razerpayOrder = await RPcreateOrder(razorpayOrderObj, split);
     if (razerpayOrder.id) {
       res.status(200).send(razerpayOrder.id);
       console.log(razerpayOrder);
@@ -400,7 +409,7 @@ route.post("/multiplestudents", async (req, res) => {
       if (!isSuccessful) {
         let time = 0;
         while (!isSuccessful || time < 60) {
-          let order = await RPcheckStatus(razerpayOrder.id);
+          let order = await RPcheckStatus(razerpayOrder.id, split);
           console.log("order Found");
           console.log(order);
           if (order?.status === "paid") {
@@ -659,7 +668,7 @@ route.post("/editItem", async (req, res, next) => {
 
 route.post("/create-order", async (req, res) => {
   try {
-    order = await RPcreateOrder(req.body.razorpayOrderObj);
+    order = await RPcreateOrder(req.body.razorpayOrderObj, false);
     if (order) {
       let razorpayOrder = razorpayOrders(order);
       await razorpayOrder.save();
@@ -672,15 +681,36 @@ route.post("/create-order", async (req, res) => {
   }
 });
 
-route.post("/order", async (req, res) => {
+findFranchiseStateByFranchiseUserName = async (franchiseUserName) => {
+  try {
+    let franchise = await Franchiselist.findOne(
+      { username: franchiseUserName },
+      { state: 1, _id: 0 }
+    );
+    return franchise ? franchise.state : null;
+  } catch (err) {
+    console.log(err);
+    return null;
+  }
+};
+
+    route.post("/order", async (req, res) => {
   var isSuccessful = req.body.isSuccessful ?? false;
   const razorpayOrderObj = req.body.razorpayOrderObj;
   console.log(req.body);
   let razorpayOrder;
+  let split = false;
+  let transfers = [];
   console.log(razorpayOrderObj);
+  if(req.body.franchise){
+    let franchiseState = await findFranchiseStateByFranchiseUserName(req.body.franchise);
+    if(franchiseState && franchiseState == "Tamil Nadu"){
+        split = true;
+    }
+  }
   // if isSuccessful is false, then wait for the payment to be successful while checking the paymentID every 5 seconds for 5 minutes
   try {
-    const razerpayOrder = await RPcreateOrder(razorpayOrderObj);
+    const razerpayOrder = await RPcreateOrder(razorpayOrderObj, split);
     res.send(razerpayOrder.id);
     razorpayOrder = razorpayOrders(razerpayOrder);
     await razorpayOrder.save();
@@ -688,7 +718,7 @@ route.post("/order", async (req, res) => {
     if (!isSuccessful) {
       let time = 0;
       while (!isSuccessful || time < 60) {
-        let order = await RPcheckStatus(razerpayOrder.id);
+        let order = await RPcheckStatus(razerpayOrder.id, split);
         console.log("order Found");
         console.log(order);
         if (order?.status === "paid") {
