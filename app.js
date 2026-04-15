@@ -37,6 +37,10 @@ app.use(bodyParser.json());
 const route = require("./routes/route");
 app.use("/api/v2", route);
 
+
+const franchiseRoute = require("./routes/franchiseRoute");
+app.use("/api/franchise", franchiseRoute);
+
 app.get("/", (req, res) => {
   res.send("Home");
 });
