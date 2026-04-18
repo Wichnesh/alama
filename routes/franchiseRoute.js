@@ -113,72 +113,7 @@ route.delete("/franchise/phone/:phoneID", async (req, res) => {
 });
 
 // 4. SEND WHATSAPP MESSAGE WITH UNIQUE LINK
-route.post("/franchise/send-whatsapp", async (req, res) => {
-  try {
-    const { franchiseID, phoneNumbers } = req.body;
-
-    if (!franchiseID || !phoneNumbers || !Array.isArray(phoneNumbers)) {
-      return res.status(400).json({
-        status: false,
-        message: "franchiseID and phoneNumbers array are required",
-      });
-    }
-
-    // Validate franchise
-    const franchise = await Franchiselist.findOne({ franchiseID });
-    if (!franchise) {
-      return res.status(404).json({
-        status: false,
-        message: "Franchise not found",
-      });
-    }
-
-    const results = [];
-
-    for (const phoneNumber of phoneNumbers) {
-      try {
-        // Generate unique link for this franchise
-        const uniqueLink = `${process.env.FRONTEND_URL || "http://localhost:3001"}/submit-form?franchise=${franchiseID}&phone=${encodeURIComponent(phoneNumber)}`;
-
-        // Prepare WhatsApp message
-        const message = `Hello! 👋\n\nWe'd love to hear from you about our programs. Please fill out this quick form:\n\n${uniqueLink}\n\nThank you!`;
-
-        // Format phone number for WhatsApp (assuming Indian format, remove leading 0 if exists)
-        const formattedPhone = phoneNumber.startsWith("0") 
-          ? "91" + phoneNumber.substring(1) 
-          : "91" + phoneNumber;
-
-        // Send WhatsApp message (using Twilio, MessageBird, or your preferred API)
-        // Example using a generic WhatsApp API endpoint
-        const whatsappResponse = await sendWhatsAppMessage(formattedPhone, message);
-
-        results.push({
-          phoneNumber,
-          status: "sent",
-          link: uniqueLink,
-          whatsappStatus: whatsappResponse.status,
-        });
-      } catch (err) {
-        results.push({
-          phoneNumber,
-          status: "failed",
-          error: err.message,
-        });
-      }
-    }
-
-    res.json({
-      status: true,
-      message: "WhatsApp messages processed",
-      results,
-    });
-  } catch (err) {
-    res.status(500).json({
-      status: false,
-      message: err.message,
-    });
-  }
-});
+// This feature is now handled by the external Lead application. If you need to send a link, please use the Lead service.
 
 // 5. GET ALL STUDENT RESPONSES FOR A FRANCHISE
 route.get("/franchise/:franchiseID/responses", async (req, res) => {

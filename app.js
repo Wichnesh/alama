@@ -39,7 +39,11 @@ app.use("/api/v2", route);
 
 
 const franchiseRoute = require("./routes/franchiseRoute");
-app.use("/api/franchise", franchiseRoute);
+app.use("/api", franchiseRoute);
+
+// Lead API
+const leadRoute = require('./routes/leadRoute');
+app.use('/', leadRoute);
 
 app.get("/", (req, res) => {
   res.send("Home");
