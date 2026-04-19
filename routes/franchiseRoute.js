@@ -1,7 +1,7 @@
 var express = require("express");
 var route = express.Router();
 const FranchisePhoneList = require("../models/franchisePhoneList");
-const StudentResponse = require("../models/studentResponse");
+const Lead = require("../models/Lead");
 const Franchiselist = require("../models/franchise");
 const axios = require("axios");
 
@@ -115,18 +115,28 @@ route.delete("/franchise/phone/:phoneID", async (req, res) => {
 // 4. SEND WHATSAPP MESSAGE WITH UNIQUE LINK
 // This feature is now handled by the external Lead application. If you need to send a link, please use the Lead service.
 
-// 5. GET ALL STUDENT RESPONSES FOR A FRANCHISE
+// 5. GET ALL STUDENT RESPONSES FOR A FRANCHISE (from Lead)
 route.get("/franchise/:franchiseID/responses", async (req, res) => {
   try {
     const { franchiseID } = req.params;
 
-    const responses = await StudentResponse.find({ franchiseID }).sort({
-      submittedAt: -1,
-    });
+    // Find all phone numbers for this franchise
+    const phoneList = await FranchisePhoneList.find({ franchiseID });
+    const phoneNumbers = phoneList.map(p => p.phoneNumber);
+    console.log("TEst", phoneList);
+    console.log("TEst phoneNumbers", phoneNumbers);
+
+    // Find all leads for these phone numbers and franchise
+    const responses = await Lead.find({ 
+      phone: { $in: phoneNumbers }, 
+      franchiseName: franchiseID 
+    }).sort({ 'response.submittedAt': -1 });
+
+    console.log("response", responses);
 
     // Separate interested and not interested
-    const interested = responses.filter((r) => r.interested);
-    const notInterested = responses.filter((r) => !r.interested);
+    const interested = responses.filter((r) => r.response && r.response.interested);
+    const notInterested = responses.filter((r) => r.response && !r.response.interested);
 
     res.json({
       status: true,
@@ -153,7 +163,7 @@ route.get("/franchise/:franchiseID/responses", async (req, res) => {
 // STUDENT APIs (PUBLIC)
 // ============================================
 
-// 6. CHECK IF PHONE ALREADY SUBMITTED
+// 6. CHECK IF PHONE ALREADY SUBMITTED (from Lead)
 route.get("/student/check-phone", async (req, res) => {
   try {
     const { phoneNumber, franchiseID } = req.query;
@@ -165,9 +175,10 @@ route.get("/student/check-phone", async (req, res) => {
       });
     }
 
-    const existing = await StudentResponse.findOne({
-      phoneNumber,
-      franchiseID,
+    const existing = await Lead.findOne({
+      phone: phoneNumber,
+      franchiseName: franchiseID,
+      submitted: true
     });
 
     res.json({
@@ -183,82 +194,22 @@ route.get("/student/check-phone", async (req, res) => {
   }
 });
 
-// 7. SUBMIT STUDENT FORM
-route.post("/student/submit-form", async (req, res) => {
-  try {
-    const { phoneNumber, franchiseID, studentName, city, state, interested } =
-      req.body;
 
-    if (
-      !phoneNumber ||
-      !franchiseID ||
-      !studentName ||
-      !city ||
-      !state ||
-      interested === undefined
-    ) {
-      return res.status(400).json({
-        status: false,
-        message: "All fields are required",
-      });
-    }
-
-    // Check if already submitted
-    const existing = await StudentResponse.findOne({
-      phoneNumber,
-      franchiseID,
-    });
-
-    if (existing) {
-      return res.status(400).json({
-        status: false,
-        message: "This phone number has already submitted a response",
-      });
-    }
-
-    // Create new response
-    const newResponse = new StudentResponse({
-      phoneNumber,
-      franchiseID,
-      studentName,
-      city,
-      state,
-      interested,
-    });
-
-    await newResponse.save();
-
-    res.json({
-      status: true,
-      message: "Form submitted successfully",
-      data: newResponse,
-    });
-  } catch (err) {
-    res.status(500).json({
-      status: false,
-      message: err.message,
-    });
-  }
-});
 
 // ============================================
 // ADMIN APIs
 // ============================================
 
-// 8. GET ALL STUDENT RESPONSES (ADMIN)
+// 8. GET ALL STUDENT RESPONSES (ADMIN, from Lead)
 route.get("/admin/all-responses", async (req, res) => {
   try {
-    const responses = await StudentResponse.find({})
-      .sort({ submittedAt: -1 })
-      .populate("franchiseID");
-
+    const responses = await Lead.find({}).sort({ 'response.submittedAt': -1 });
     const stats = {
       total: responses.length,
-      interested: responses.filter((r) => r.interested).length,
-      notInterested: responses.filter((r) => !r.interested).length,
-      assigned: responses.filter((r) => r.assignedToFranchiseID).length,
+      interested: responses.filter((r) => r.response && r.response.interested).length,
+      notInterested: responses.filter((r) => r.response && !r.response.interested).length,
+      assigned: responses.filter((r) => r.franchiseName).length,
     };
-
     res.json({
       status: true,
       data: responses,
@@ -272,15 +223,15 @@ route.get("/admin/all-responses", async (req, res) => {
   }
 });
 
-// 9. ASSIGN STUDENT TO FRANCHISE (ADMIN)
-route.post("/admin/assign-student", async (req, res) => {
+// 9. ASSIGN LEAD TO FRANCHISE (ADMIN)
+route.post("/admin/assign-lead", async (req, res) => {
   try {
-    const { responseID, assignToFranchiseID } = req.body;
+    const { leadId, assignToFranchiseID } = req.body;
 
-    if (!responseID || !assignToFranchiseID) {
+    if (!leadId || !assignToFranchiseID) {
       return res.status(400).json({
         status: false,
-        message: "responseID and assignToFranchiseID are required",
+        message: "leadId and assignToFranchiseID are required",
       });
     }
 
@@ -295,11 +246,10 @@ route.post("/admin/assign-student", async (req, res) => {
       });
     }
 
-    const updated = await StudentResponse.findByIdAndUpdate(
-      responseID,
+    const updated = await Lead.findByIdAndUpdate(
+      leadId,
       {
-        assignedToFranchiseID,
-        assignedAt: new Date(),
+        franchiseName: assignToFranchiseID
       },
       { new: true }
     );
@@ -307,13 +257,13 @@ route.post("/admin/assign-student", async (req, res) => {
     if (!updated) {
       return res.status(404).json({
         status: false,
-        message: "Student response not found",
+        message: "Lead not found",
       });
     }
 
     res.json({
       status: true,
-      message: "Student assigned successfully",
+      message: "Lead assigned successfully",
       data: updated,
     });
   } catch (err) {
