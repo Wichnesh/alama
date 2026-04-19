@@ -58,6 +58,7 @@ route.post("/login", async (req, res, next) => {
           JSON.stringify({
             token: token,
             status: true,
+            franchise: userCheck.franchiseID,
             isAdmin: userCheck.isAdmin,
             franchiseState: userCheck.state,
           })
