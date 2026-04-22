@@ -123,31 +123,22 @@ route.get("/franchise/:franchiseID/responses", async (req, res) => {
     // Find all phone numbers for this franchise
     const phoneList = await FranchisePhoneList.find({ franchiseID });
     const phoneNumbers = phoneList.map(p => p.phoneNumber);
-    console.log("TEst", phoneList);
-    console.log("TEst phoneNumbers", phoneNumbers);
 
     // Find all leads for these phone numbers and franchise
     const responses = await Lead.find({ 
-      phone: { $in: phoneNumbers }, 
-      franchiseName: franchiseID 
-    }).sort({ 'response.submittedAt': -1 });
+      $or: [
+        { phone: { $in: phoneNumbers }, franchiseName: franchiseID },
+        { franchiseName: franchiseID, franchiseUniqueLink: true }
+      ]
+    }).sort({ submittedAt: -1 });
 
-    console.log("response", responses);
-
-    // Separate interested and not interested
-    const interested = responses.filter((r) => r.response && r.response.interested);
-    const notInterested = responses.filter((r) => r.response && !r.response.interested);
 
     res.json({
       status: true,
       data: {
         all: responses,
-        interested,
-        notInterested,
         counts: {
           total: responses.length,
-          interested: interested.length,
-          notInterested: notInterested.length,
         },
       },
     });
@@ -203,11 +194,9 @@ route.get("/student/check-phone", async (req, res) => {
 // 8. GET ALL STUDENT RESPONSES (ADMIN, from Lead)
 route.get("/admin/all-responses", async (req, res) => {
   try {
-    const responses = await Lead.find({}).sort({ 'response.submittedAt': -1 });
+    const responses = await Lead.find({}).sort({ submittedAt: -1 });
     const stats = {
       total: responses.length,
-      interested: responses.filter((r) => r.response && r.response.interested).length,
-      notInterested: responses.filter((r) => r.response && !r.response.interested).length,
       assigned: responses.filter((r) => r.franchiseName).length,
     };
     res.json({
@@ -249,7 +238,8 @@ route.post("/admin/assign-lead", async (req, res) => {
     const updated = await Lead.findByIdAndUpdate(
       leadId,
       {
-        franchiseName: assignToFranchiseID
+        franchiseName: assignToFranchiseID,
+        assignedByAdmin: true
       },
       { new: true }
     );
