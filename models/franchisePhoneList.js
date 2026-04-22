@@ -13,6 +13,10 @@ const franchisePhoneListSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+    linkSent: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
