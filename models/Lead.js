@@ -5,7 +5,7 @@ const LeadSchema = new mongoose.Schema({
   phone: String,
   franchiseName: String,
   linkId: { type: String},
-  uniqueId: { type: String, unique: true },
+  uniqueId: { type: String },
   franchiseUniqueLink: { type: Boolean, default: false },
   status: { type: String, default: 'Link sent' },
   assignedByAdmin: { type: Boolean, default: false },
