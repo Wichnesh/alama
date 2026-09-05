@@ -3,6 +3,7 @@ var route = express.Router();
 const jwt = require("jsonwebtoken");
 var Franchiselist = require("../models/franchise");
 var Studentlist = require("../models/students");
+var StudentLevelChangeRequest = require("../models/studentLevelChangeRequest");
 var StudentCartlist = require("../models/studentsCart");
 var Itemlist = require("../models/items");
 var Transactionlist = require("../models/transaction");
@@ -377,6 +378,150 @@ route.post("/student-update/:id", async (req, res) => {
     res.status(400).json({
       status: false,
       message: err,
+    });
+  }
+});
+
+// REQUEST STUDENT LEVEL CHANGE (FRANCHISE)
+route.post("/student-level-change-requests", async (req, res) => {
+  try {
+    const { studentID } = req.body;
+
+    if (!studentID) {
+      return res.status(400).json({
+        status: false,
+        message: "studentID is required",
+      });
+    }
+
+    const student = await Studentlist.findOne({ studentID });
+    if (!student) {
+      return res.status(404).json({
+        status: false,
+        message: "Student not found",
+      });
+    }
+
+    const existingRequest = await StudentLevelChangeRequest.findOne({
+      studentID,
+      status: "pending",
+    });
+    if (existingRequest) {
+      return res.status(409).json({
+        status: false,
+        message: "A level change request is already pending for this student",
+        data: existingRequest,
+      });
+    }
+
+    const request = await StudentLevelChangeRequest.create({
+      studentID,
+      franchise: student.franchise
+    });
+
+    res.status(201).json({
+      status: true,
+      message: "Student level change sent for admin approval",
+      data: request,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: false,
+      message: err.message,
+    });
+  }
+});
+
+// GET STUDENT LEVEL CHANGE REQUESTS (ADMIN, OPTIONALLY BY FRANCHISE)
+route.get("/admin/student-level-change-requests", async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.franchise) {
+      filter.franchise = req.query.franchise;
+    }
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    const requests = await StudentLevelChangeRequest.find(filter).sort({
+      createdAt: -1,
+    });
+
+    res.json({
+      status: true,
+      data: requests,
+      count: requests.length,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: false,
+      message: err.message,
+    });
+  }
+});
+
+// APPROVE OR REJECT STUDENT LEVEL CHANGE (ADMIN)
+route.post("/admin/student-level-change-requests/:requestID/review", async (req, res) => {
+  try {
+    const { requestID } = req.params;
+    const { action, reviewedBy, reviewNote } = req.body;
+
+    if (!["approve", "reject"].includes(action)) {
+      return res.status(400).json({
+        status: false,
+        message: "action must be approve or reject",
+      });
+    }
+
+    const request = await StudentLevelChangeRequest.findOne({
+      _id: requestID,
+      status: "pending",
+    });
+    if (!request) {
+      return res.status(404).json({
+        status: false,
+        message: "Pending level change request not found",
+      });
+    }
+
+    if (action === "approve") {
+      const updatedStudent = await Studentlist.findOneAndUpdate(
+        { studentID: request.studentID },
+        {
+          $push: {
+            levelOrders: {
+              date: new Date().toISOString(),
+              cost: "0",
+              paymentID: "admin-level-change",
+            },
+          },
+        },
+        { new: true }
+      );
+
+      if (!updatedStudent) {
+        return res.status(409).json({
+          status: false,
+          message: "Student was changed or removed before approval",
+        });
+      }
+    }
+
+    request.status = action === "approve" ? "approved" : "rejected";
+    request.reviewedAt = new Date();
+    request.reviewedBy = reviewedBy;
+    request.reviewNote = reviewNote;
+    await request.save();
+
+    res.json({
+      status: true,
+      message: `Student level change ${request.status}`,
+      data: request,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: false,
+      message: err.message,
     });
   }
 });
