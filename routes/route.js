@@ -3,7 +3,6 @@ var route = express.Router();
 const jwt = require("jsonwebtoken");
 var Franchiselist = require("../models/franchise");
 var Studentlist = require("../models/students");
-var StudentLevelChangeRequest = require("../models/studentLevelChangeRequest");
 var StudentCartlist = require("../models/studentsCart");
 var Itemlist = require("../models/items");
 var Transactionlist = require("../models/transaction");
@@ -402,27 +401,55 @@ route.post("/student-level-change-requests", async (req, res) => {
       });
     }
 
-    const existingRequest = await StudentLevelChangeRequest.findOne({
-      studentID,
-      status: "pending",
-    });
-    if (existingRequest) {
+    if (student.levelChangeApprovalStatus === "pending") {
       return res.status(409).json({
         status: false,
         message: "A level change request is already pending for this student",
-        data: existingRequest,
+        data: student,
       });
     }
 
-    const request = await StudentLevelChangeRequest.create({
-      studentID,
-      franchise: student.franchise
-    });
+    student.levelChangeApprovalStatus = "pending";
+    student.levelChangeRequestedAt = new Date();
+    student.levelChangeReviewedAt = undefined;
+    student.levelChangeReviewedBy = undefined;
+    student.levelChangeReviewNote = undefined;
+    await student.save();
 
     res.status(201).json({
       status: true,
       message: "Student level change sent for admin approval",
-      data: request,
+      data: student,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: false,
+      message: err.message,
+    });
+  }
+});
+
+// GET STUDENT LEVEL CHANGE APPROVAL STATUS
+route.get("/student-level-change-requests/:studentID/status", async (req, res) => {
+  try {
+    const student = await Studentlist.findOne({ studentID: req.params.studentID });
+
+    if (!student) {
+      return res.status(404).json({
+        status: false,
+        message: "Student not found",
+      });
+    }
+
+    res.json({
+      status: true,
+      data: {
+        studentID: student.studentID,
+        approvalStatus: student.levelChangeApprovalStatus,
+        reviewedAt: student.levelChangeReviewedAt,
+        reviewedBy: student.levelChangeReviewedBy,
+        reviewNote: student.levelChangeReviewNote,
+      },
     });
   } catch (err) {
     res.status(500).json({
@@ -440,17 +467,17 @@ route.get("/admin/student-level-change-requests", async (req, res) => {
       filter.franchise = req.query.franchise;
     }
     if (req.query.status) {
-      filter.status = req.query.status;
+      filter.levelChangeApprovalStatus = req.query.status;
     }
 
-    const requests = await StudentLevelChangeRequest.find(filter).sort({
-      createdAt: -1,
+    const students = await Studentlist.find(filter).sort({
+      levelChangeRequestedAt: -1,
     });
 
     res.json({
       status: true,
-      data: requests,
-      count: requests.length,
+      data: students,
+      count: students.length,
     });
   } catch (err) {
     res.status(500).json({
@@ -463,7 +490,7 @@ route.get("/admin/student-level-change-requests", async (req, res) => {
 // APPROVE OR REJECT STUDENT LEVEL CHANGE (ADMIN)
 route.post("/admin/student-level-change-requests/:requestID/review", async (req, res) => {
   try {
-    const { requestID } = req.params;
+    const { requestID: studentID } = req.params;
     const { action, reviewedBy, reviewNote } = req.body;
 
     if (!["approve", "reject"].includes(action)) {
@@ -473,50 +500,52 @@ route.post("/admin/student-level-change-requests/:requestID/review", async (req,
       });
     }
 
-    const request = await StudentLevelChangeRequest.findOne({
-      _id: requestID,
-      status: "pending",
+    const student = await Studentlist.findOne({
+      studentID,
+      levelChangeApprovalStatus: "pending",
     });
-    if (!request) {
+    if (!student) {
       return res.status(404).json({
         status: false,
-        message: "Pending level change request not found",
+        message: "Pending level change request not found for this student",
       });
     }
 
     if (action === "approve") {
-      const updatedStudent = await Studentlist.findOneAndUpdate(
-        { studentID: request.studentID },
-        {
-          $push: {
-            levelOrders: {
-              date: new Date().toISOString(),
-              cost: "0",
-              paymentID: "admin-level-change",
-            },
-          },
-        },
-        { new: true }
-      );
-
-      if (!updatedStudent) {
-        return res.status(409).json({
+      const currentLevelMatch = String(student.level || "").match(/^(.*?)(\d+)\s*$/);
+      if (!currentLevelMatch) {
+        return res.status(400).json({
           status: false,
-          message: "Student was changed or removed before approval",
+          message: "Student current level cannot be advanced automatically",
         });
       }
+
+      const nextLevel = `${currentLevelMatch[1]}${Number(currentLevelMatch[2]) + 1}`;
+      student.level = nextLevel;
+      student.levelChangeApprovalStatus = "approved";
+      student.levelChangeReviewedAt = new Date();
+      student.levelChangeReviewedBy = reviewedBy;
+      student.levelChangeReviewNote = reviewNote;
+      student.levelOrders.push({
+        level: nextLevel,
+        program: student.program,
+        date: new Date().toISOString(),
+        cost: "0",
+        paymentID: "admin-level-change",
+      });
+    } else {
+      student.levelChangeApprovalStatus = "rejected";
+      student.levelChangeReviewedAt = new Date();
+      student.levelChangeReviewedBy = reviewedBy;
+      student.levelChangeReviewNote = reviewNote;
     }
 
-    request.status = action === "approve" ? "approved" : "rejected";
-    request.reviewedAt = new Date();
-    request.reviewedBy = reviewedBy;
-    request.reviewNote = reviewNote;
-    await request.save();
+    await student.save();
 
     res.json({
       status: true,
-      message: `Student level change ${request.status}`,
-      data: request,
+      message: `Student level change ${student.levelChangeApprovalStatus}`,
+      data: student,
     });
   } catch (err) {
     res.status(500).json({

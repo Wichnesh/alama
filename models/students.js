@@ -70,6 +70,23 @@ const studentSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  levelChangeApprovalStatus: {
+    type: String,
+    enum: ["not_requested", "pending", "approved", "rejected"],
+    default: "not_requested",
+  },
+  levelChangeRequestedAt: {
+    type: Date,
+  },
+  levelChangeReviewedAt: {
+    type: Date,
+  },
+  levelChangeReviewedBy: {
+    type: String,
+  },
+  levelChangeReviewNote: {
+    type: String,
+  },
   levelOrders: [
     {
       level: String,

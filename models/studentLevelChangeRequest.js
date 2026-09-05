@@ -5,6 +5,7 @@ const studentLevelChangeRequestSchema = new mongoose.Schema(
     studentID: {
       type: String,
       required: true,
+      unique: true,
     },
     franchise: {
       type: String,
@@ -32,11 +33,6 @@ const studentLevelChangeRequestSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
-);
-
-studentLevelChangeRequestSchema.index(
-  { studentID: 1, status: 1 },
-  { unique: true, partialFilterExpression: { status: "pending" } }
 );
 
 module.exports = mongoose.model(
