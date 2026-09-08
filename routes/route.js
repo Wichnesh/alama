@@ -493,13 +493,6 @@ route.post("/admin/student-level-change-requests/:requestID/review", async (req,
     const { requestID: studentID } = req.params;
     const { action, reviewedBy, reviewNote } = req.body;
 
-    if (!["approve", "reject"].includes(action)) {
-      return res.status(400).json({
-        status: false,
-        message: "action must be approve or reject",
-      });
-    }
-
     const student = await Studentlist.findOne({
       studentID,
       levelChangeApprovalStatus: "pending",
@@ -512,27 +505,10 @@ route.post("/admin/student-level-change-requests/:requestID/review", async (req,
     }
 
     if (action === "approve") {
-      const currentLevelMatch = String(student.level || "").match(/^(.*?)(\d+)\s*$/);
-      if (!currentLevelMatch) {
-        return res.status(400).json({
-          status: false,
-          message: "Student current level cannot be advanced automatically",
-        });
-      }
-
-      const nextLevel = `${currentLevelMatch[1]}${Number(currentLevelMatch[2]) + 1}`;
-      student.level = nextLevel;
       student.levelChangeApprovalStatus = "approved";
       student.levelChangeReviewedAt = new Date();
       student.levelChangeReviewedBy = reviewedBy;
       student.levelChangeReviewNote = reviewNote;
-      student.levelOrders.push({
-        level: nextLevel,
-        program: student.program,
-        date: new Date().toISOString(),
-        cost: "0",
-        paymentID: "admin-level-change",
-      });
     } else {
       student.levelChangeApprovalStatus = "rejected";
       student.levelChangeReviewedAt = new Date();
